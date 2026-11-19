@@ -8,6 +8,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo shared: nothing to build (consumed as TypeScript source)"
+    "build": "node -e \"console.log('Shared package is consumed as TypeScript source')\""
   }
 }
