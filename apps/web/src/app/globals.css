@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Bricolage Grotesque Variable';
+  --font-body: 'Manrope Variable';
+  --font-serif: 'Instrument Serif';
+  --font-mono: 'JetBrains Mono Variable';
+  --font-hindi: 'Noto Sans Devanagari Variable';
+}
+
+/* ---------------------------------------------------------------------------
+   Restaurant OS design tokens
+   Three surfaces share one palette:
+   - .theme-dark  → marketing site (ink base, ember accent)
+   - .theme-light → guest menu + admin (paper base, ember accent)
+   Semantic tokens are RGB triplets so Tailwind can apply alpha (bg-fg/60).
+--------------------------------------------------------------------------- */
+:root,
+.theme-light {
+  --bg: 247 244 238;      /* paper */
+  --fg: 12 13 16;         /* ink */
+  --muted: 104 106 114;
+  --line: 12 13 16;       /* used with alpha: border-line/10 */
+  --surface: 255 255 255;
+  --sunk: 239 234 224;    /* paper-2 */
+  --accent: 255 92 42;    /* ember */
+  color-scheme: light;
+}
+
+.theme-dark {
+  --bg: 12 13 16;         /* ink */
+  --fg: 247 244 238;      /* paper */
+  --muted: 154 156 166;
+  --line: 247 244 238;
+  --surface: 21 23 28;    /* ink-2 */
+  --sunk: 31 34 40;       /* ink-3 */
+  --accent: 255 92 42;
+  color-scheme: dark;
+}
+
+/* Admin uses a slightly cooler, denser light surface */
+.theme-admin {
+  --bg: 244 243 240;
+  --fg: 12 13 16;
+  --muted: 104 106 114;
+  --line: 12 13 16;
+  --surface: 255 255 255;
+  --sunk: 236 234 229;
+  --accent: 255 92 42;
+  color-scheme: light;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+  body {
+    @apply bg-bg text-fg font-sans;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: rgb(255 92 42 / 0.9);
+    color: #fff;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* Hindi text: Devanagari face first, then the normal body stack for digits and Latin. */
+  [lang='hi'] {
+    font-family: var(--font-hindi), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  }
+  :focus-visible {
+    outline: 2px solid #ff5c2a;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  button, [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  input, textarea, select {
+    @apply font-sans;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Page gutter: 16px minimum, more on wide screens, safe-area aware. */
+  .gutter {
+    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+  }
+  @screen md {
+    .gutter {
+      padding-left: max(2.5rem, env(safe-area-inset-left, 0px));
+      padding-right: max(2.5rem, env(safe-area-inset-right, 0px));
+    }
+  }
+  @screen xl {
+    .gutter {
+      padding-left: max(4rem, env(safe-area-inset-left, 0px));
+      padding-right: max(4rem, env(safe-area-inset-right, 0px));
+    }
+  }
+  .container-x {
+    @apply gutter mx-auto w-full max-w-[1440px];
+  }
+
+  /* Mono eyebrow label */
+  .eyebrow {
+    @apply font-mono text-2xs uppercase tracking-[0.18em] text-muted;
+  }
+
+  /* Hairline borders that work on both themes */
+  .hairline {
+    @apply border border-line/10;
+  }
+  .hairline-t { @apply border-t border-line/10; }
+  .hairline-b { @apply border-b border-line/10; }
+
+  /* Glass surfaces */
+  .glass {
+    background: rgb(var(--surface) / 0.72);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+  }
+  .glass-dark {
+    background: rgb(12 13 16 / 0.6);
+    backdrop-filter: saturate(160%) blur(16px);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
+  }
+
+  /* Tabular numerals wherever digits line up */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Grain overlay for the dark marketing surfaces */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    @apply rounded-lg bg-sunk;
+    background-image: linear-gradient(90deg, rgb(var(--sunk)) 0%, rgb(var(--surface)) 50%, rgb(var(--sunk)) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Hide scrollbars on horizontal pill rows while keeping scroll */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Ember gradient text */
+  .text-gradient-ember {
+    background: linear-gradient(100deg, #ff5c2a 0%, #f2b33d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .mask-fade-x {
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .mask-fade-b {
+    mask-image: linear-gradient(180deg, #000 70%, transparent);
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+  }
+  .pb-safe { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .will-change-transform { will-change: transform; }
+  .text-balance { text-wrap: balance; }
+}

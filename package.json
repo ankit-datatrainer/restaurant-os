@@ -1,0 +1,34 @@
+{
+  "name": "restaurant-os",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Restaurant OS — table QR ordering, live kitchen dashboard, UPI billing. Next.js + Express + Supabase.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
+    "start": "concurrently -n api,web -c cyan,magenta \"npm run start -w apps/api\" \"npm run start -w apps/web\"",
+    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "lint": "npm run lint -w apps/web",
+    "seed": "npm run seed -w apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "overrides": {
+    "express": {
+      "body-parser": "^1.20.9"
+    },
+    "next": {
+      "postcss": "^8.5.31"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
