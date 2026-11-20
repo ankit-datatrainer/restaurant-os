@@ -72,7 +72,8 @@ async function main() {
 
   const items = await fetch(`${URL_}/rest/v1/menu_items?select=id`, { headers: { ...h, Prefer: 'count=exact', Range: '0-0' } });
   const count = Number((items.headers.get('content-range') ?? '/0').split('/')[1]);
-  ok(count === 37, `Menu loaded (${count} dishes)`);
+  // Restaurants edit their menus and new ones get sample menus, so only "has dishes" is checked.
+  ok(count > 0, `Menu loaded (${count} dishes across all restaurants)`);
 
   const orders = await fetch(`${URL_}/rest/v1/orders?select=id`, { headers: h });
   ok(orders.ok && (await orders.json()).length === 0, 'Row-level security hides orders from the public key');
