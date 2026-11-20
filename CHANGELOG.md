@@ -7,7 +7,7 @@ Each step says what changed, where, and how it was checked.
 
 1. ~~Run 0004~~ and ~~0005~~ — done (verified on your project 26 Oct 2026).
 2. ~~Run 0006~~ and ~~`cleanup_test_data.sql`~~ — done (verified on your project 26 Oct 2026, Step 22).
-3. **Run `supabase/migrations/0007_saas_platform_notifications.sql`** in your Supabase SQL editor (round 4: signup, console, notifications).
+3. ~~Run 0007~~ — done (verified on your project and the live site 21 Nov 2026, Step 28).
 4. Give yourself console access (SQL editor): `insert into public.platform_admins (user_id) select id from auth.users where email = 'YOUR LOGIN EMAIL';`
 5. Supabase → Authentication → URL Configuration: add `https://restaurantos.peculiex.com/admin/login` to Redirect URLs (signup confirmation emails land there).
 6. Before real guests: switch the demo café's takeaway / booking off (Settings) if you don't want them yet, and replace the demo coupons, happy hour, ingredients and suppliers with your own.
@@ -367,3 +367,12 @@ Notifications are sent automatically: **guests** on Order confirmed (accepted), 
 | API test on staging | **42 / 42** (signup, console, directory, suspend, push subscribe/unsubscribe, notifications on every status, failed deliveries cleaned up) |
 | Browser on staging | New owner → setup → dashboard with welcome + checklist + trial banner; guest order → video with Skip → "While your food is cooking" → game page shows **Order confirmed**, **Ready!**, **Enjoy your meal — Rate it** banners as the kitchen moves the order; tracker shows rating + Google review; directory; console (admin-only) |
 | Not testable here | A real phone notification (needs a phone with the live site) — see "How to test" in the report |
+
+## Step 28 — Verified live (after you ran 0007)
+
+| Check | Result |
+|---|---|
+| Connection check on your project (`node scripts/check-supabase.mjs`) | **16 / 16** — 0007 installed, notification subscriptions hidden from the public key |
+| Read-only checks on https://restaurantos.peculiex.com | **11 / 11** — notifications switched on, signup web-address check, directory, new profile fields, guest menu, dashboard, console refuses non-admins, live orders, floor |
+| Live pages | /restaurants lists Saffron Lane Café; /signup, /platform, /admin/setup load with no errors |
+| Not done on your live data (to keep it clean) | A real signup, a real order and a real phone notification — follow "How to test" in the report |
