@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check, Copy, Crown, Minus, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, Copy, Crown, Hourglass, MessageCircle, Minus, PauseCircle, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PlanFeature, PlanId } from '@restaurant-os/shared';
-import { FOUNDING_OFFER, PLAN_IDS, PLAN_INFO, planHas } from '@restaurant-os/shared';
+import { FOUNDING_OFFER, PLAN_IDS, PLAN_INFO, TRIAL_DAYS, planHas, trialDaysLeft } from '@restaurant-os/shared';
 import { cn, formatINR } from '@/lib/utils';
 import { Badge, Button, Card, CardBody, CardHeader } from '@/components/ui';
 import { useAdmin } from './admin-provider';
@@ -83,6 +83,66 @@ const PREMIUM_FEATURES: Array<{ title: string; body: string; href: string; note?
   { title: 'POS / webhook integration', body: 'Every order sent to your POS, KOT software, Zapier/Make or your own server as signed webhooks.', href: '/admin/integrations', note: POS_NOTE },
 ];
 
+/** Free trial / paused account, above the current plan. Nothing when the account is simply active. */
+function AccountState() {
+  const { restaurant } = useAdmin();
+  const days = trialDaysLeft(restaurant);
+  const suspended = restaurant.status === 'suspended';
+  if (!suspended && (days === null || !restaurant.trial_ends_at)) return null;
+
+  if (suspended) {
+    return (
+      <Card className="mb-4 border-rose/30">
+        <CardBody className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-soft text-rose" aria-hidden>
+            <PauseCircle className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-display text-lg font-semibold">Your account is paused</p>
+            <p className="mt-1 text-sm text-muted">Guests can’t place orders until Restaurant OS turns it back on. Write to us below or use Talk to us, and we’ll sort it out with you.</p>
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  const ended = (days ?? 0) <= 0;
+  const endDate = new Date(restaurant.trial_ends_at as string).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const used = Math.min(TRIAL_DAYS, Math.max(0, TRIAL_DAYS - (days ?? 0)));
+  return (
+    <Card className={cn('mb-4', ended ? 'border-saffron/40' : '')}>
+      <CardBody className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', ended ? 'bg-saffron-soft text-[#8a5a00]' : 'bg-ember-soft text-ember')} aria-hidden>
+            <Hourglass className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="eyebrow">Free trial</p>
+            <p className="mt-0.5 font-display text-lg font-semibold leading-tight">
+              {ended ? `Your free trial ended on ${endDate}` : `${days} day${days === 1 ? '' : 's'} left in your free trial`}
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              {ended
+                ? 'To keep using Restaurant OS, choose a plan with the Restaurant OS team (details below).'
+                : `Ends ${endDate}. To keep going after that, choose a plan with the Restaurant OS team (details below).`}
+            </p>
+          </div>
+        </div>
+        {!ended && (
+          <div className="sm:w-44" aria-hidden>
+            <div className="h-2 overflow-hidden rounded-full bg-sunk">
+              <div className="h-full rounded-full bg-ember" style={{ width: `${(used / TRIAL_DAYS) * 100}%` }} />
+            </div>
+            <p className="mt-1.5 font-mono text-2xs uppercase tracking-[0.12em] text-muted tnum">
+              Day {Math.min(TRIAL_DAYS, used + 1)} of {TRIAL_DAYS}
+            </p>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
 function hasAll(plan: PlanId, features: PlanFeature[]): boolean {
   return features.every((f) => planHas(plan, f));
 }
@@ -117,6 +177,8 @@ export function SubscriptionView() {
         title="Plan & billing"
         description="Your Restaurant OS plan, what it includes and what is billed separately. Prices are per outlet and exclude GST."
       />
+
+      <AccountState />
 
       {/* Current plan */}
       <Card className="overflow-hidden">
@@ -333,15 +395,23 @@ export function SubscriptionView() {
       {/* Change plan */}
       <Card className="mb-4 mt-8">
         <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[15px]">
-            To change plan, write to{' '}
-            <span ref={emailRef} className="select-all rounded-md bg-sunk px-1.5 py-0.5 font-mono text-sm font-semibold">
-              {CHANGE_PLAN_EMAIL}
-            </span>
-          </p>
-          <Button variant="outline" size="sm" leftIcon={<Copy className="h-4 w-4" />} onClick={() => void copyEmail()} className="self-start sm:self-auto">
-            Copy address
-          </Button>
+          <div className="min-w-0">
+            <p className="text-[15px]">
+              To choose or change your plan, write to{' '}
+              <span ref={emailRef} className="select-all rounded-md bg-sunk px-1.5 py-0.5 font-mono text-sm font-semibold">
+                {CHANGE_PLAN_EMAIL}
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-muted">There is no online payment in the app yet: the Restaurant OS team sets up your plan and sends you an invoice.</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 self-start sm:self-auto">
+            <Button variant="outline" size="sm" leftIcon={<Copy className="h-4 w-4" />} onClick={() => void copyEmail()}>
+              Copy address
+            </Button>
+            <Button href="/contact" external variant="ghost" size="sm" leftIcon={<MessageCircle className="h-4 w-4" />}>
+              Talk to us
+            </Button>
+          </div>
         </CardBody>
       </Card>
     </div>

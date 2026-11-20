@@ -21,6 +21,7 @@ import { promotionsRouter } from './promotions.js';
 import { inventoryRouter } from './inventory.js';
 import { financeRouter } from './finance.js';
 import { joinRouter, staffRouter } from './staff.js';
+import { pushRouter } from './push.js';
 
 /**
  * `<img src="/api/admin/tables/:id/qr.svg?token=…">` cannot send headers, so the
@@ -73,3 +74,4 @@ adminRouter.use('/', promotionsRouter);
 adminRouter.use('/inventory', inventoryRouter);
 adminRouter.use('/finance', financeRouter);
 adminRouter.use('/', staffRouter);
+adminRouter.use('/push', pushRouter);

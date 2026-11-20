@@ -42,7 +42,8 @@ export function parseStoryVideo(raw: string | null | undefined): StoryVideo | nu
   return { kind: 'link', href: url.toString() };
 }
 
-function storyParts(r: StoryRestaurant) {
+/** Title (falls back to "About <name>"), text and parsed video of a restaurant's story. */
+export function storyParts(r: StoryRestaurant) {
   return {
     title: r.story_title?.trim() || `About ${r.name}`,
     text: r.story_text?.trim() || '',

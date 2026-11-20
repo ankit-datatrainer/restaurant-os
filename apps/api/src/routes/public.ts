@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import type {
   AssistanceCall,
+  DirectoryResponse,
+  DirectoryRestaurant,
   DiningTable,
   HappyHour,
   LoyaltyStatus,
@@ -16,16 +18,23 @@ import type {
   TableMenuResponse,
   UnsubscribeInfo,
 } from '@restaurant-os/shared';
+import { tableDisplay } from '@restaurant-os/shared';
+import { config } from '../config.js';
 import { anonClient } from '../lib/supabase.js';
 import { asyncHandler, fromSupabase, notFound } from '../lib/errors.js';
 import { parse, pickQuery, uuidParam } from '../services/handlers.js';
 import { rateLimit } from '../services/rateLimit.js';
+import { background, notifyStaffCall, notifyStaffNewOrder, pushEnabled } from '../services/push.js';
 import { stripRestaurant } from '../services/restaurant.js';
 import { TABLE_CODE_RE } from '../services/tables.js';
 import {
   addItemsSchema,
   claimPaymentSchema,
   createCallSchema,
+  directoryQuerySchema,
+  guestPushSchema,
+  pushEndpointSchema,
+  slugQuerySchema,
   feedbackSchema,
   leadSchema,
   orderSessionQuerySchema,
@@ -168,6 +177,7 @@ publicRouter.post(
     // Postgres `raise exception ... errcode P0001` → 400 with the function's own message.
     if (error) throw fromSupabase(error, 'Could not place the order');
     if (!data) throw notFound(ORDER_NOT_FOUND);
+    notifyStaffNewOrder(data as OrderWithItems, input.guest_session_id);
     res.json(data as OrderWithItems);
   }),
 );
@@ -184,6 +194,7 @@ publicRouter.post(
     if (error?.code === 'PGRST202') ({ data, error } = await anonClient.rpc('add_order_items', base));
     if (error) throw fromSupabase(error, 'Could not add to the order');
     if (!data) throw notFound(ORDER_NOT_FOUND);
+    notifyStaffNewOrder(data as OrderWithItems, input.guest_session_id, true);
     res.json(data as OrderWithItems);
   }),
 );
@@ -258,7 +269,15 @@ publicRouter.post(
     });
     if (error) throw fromSupabase(error, 'Could not call the staff');
     if (!data) throw notFound(TABLE_NOT_FOUND);
-    res.json(data as AssistanceCall);
+    const call = data as AssistanceCall;
+    if (input.guest_session_id) {
+      const guestSession = input.guest_session_id;
+      background(async () => {
+        const { data: t } = await anonClient.from('dining_tables').select('label, area').eq('code', input.table_code).maybeSingle();
+        notifyStaffCall(call, guestSession, t ? tableDisplay(t as { label: string; area: string | null }) : 'A table');
+      });
+    }
+    res.json(call);
   }),
 );
 
@@ -421,5 +440,87 @@ publicRouter.post(
     });
     if (error) throw fromSupabase(error, 'Could not send the booking request');
     res.status(201).json(data as ReservationRequestResult);
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Web Push for guests (migration 0007)
+// ---------------------------------------------------------------------------
+
+/** The VAPID public key the browser subscribes with; null when push is not set up on this server. */
+publicRouter.get('/push/config', (_req, res) => {
+  res.json({ enabled: pushEnabled, publicKey: pushEnabled ? config.vapidPublicKey : null });
+});
+
+/** This phone wants order updates (for its guest session) from this restaurant. */
+publicRouter.post(
+  '/push/subscribe',
+  asyncHandler(async (req, res) => {
+    const input = parse(guestPushSchema, req.body);
+    const { error } = await anonClient.rpc('save_guest_push', {
+      p_table_code: input.table_code ?? null,
+      p_restaurant_slug: input.table_code ? null : (input.restaurant_slug ?? null),
+      p_guest_session_id: input.guest_session_id,
+      p_endpoint: input.subscription.endpoint,
+      p_p256dh: input.subscription.keys.p256dh,
+      p_auth: input.subscription.keys.auth,
+      p_user_agent: String(req.headers['user-agent'] ?? '').slice(0, 300) || null,
+    });
+    if (error) throw fromSupabase(error, 'Could not turn on notifications');
+    res.status(201).json({ ok: true });
+  }),
+);
+
+publicRouter.post(
+  '/push/unsubscribe',
+  asyncHandler(async (req, res) => {
+    const { endpoint } = parse(pushEndpointSchema, req.body);
+    const { error } = await anonClient.rpc('drop_push_subscription', { p_endpoint: endpoint });
+    if (error) throw fromSupabase(error);
+    res.json({ ok: true });
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Directory of restaurants on Restaurant OS (they opt in from Settings)
+// ---------------------------------------------------------------------------
+const DIRECTORY_FIELDS =
+  'slug, name, tagline, city, cuisine, cover_url, logo_url, is_open, open_time, close_time, takeaway_enabled, reservations_enabled, plan';
+
+publicRouter.get(
+  '/directory',
+  asyncHandler(async (req, res) => {
+    const q = parse(directoryQuerySchema, pickQuery(req.query, ['q', 'city']));
+    let query = anonClient.from('restaurants').select(DIRECTORY_FIELDS).eq('listed', true).eq('status', 'active');
+    if (q.city) query = query.ilike('city', q.city.replace(/[%_,()]/g, ''));
+    if (q.q) {
+      const safe = q.q.replace(/[%_,()]/g, ' ').trim();
+      if (safe) query = query.or(`name.ilike.%${safe}%,cuisine.ilike.%${safe}%,city.ilike.%${safe}%`);
+    }
+    const [list, all] = await Promise.all([
+      query.order('name').limit(200),
+      anonClient.from('restaurants').select('city').eq('listed', true).eq('status', 'active').not('city', 'is', null),
+    ]);
+    if (list.error) throw fromSupabase(list.error);
+    // Online takeaway and booking are Growth features: never advertise them for a plan without them.
+    const restaurants: DirectoryRestaurant[] = (list.data ?? []).map((r) => {
+      const { plan, ...rest } = r as DirectoryRestaurant & { plan: string };
+      const paid = plan !== 'starter';
+      return { ...rest, takeaway_enabled: paid && rest.takeaway_enabled, reservations_enabled: paid && rest.reservations_enabled };
+    });
+    const cities = [...new Set(((all.data ?? []) as Array<{ city: string | null }>).map((r) => (r.city ?? '').trim()).filter(Boolean))].sort();
+    const payload: DirectoryResponse = { restaurants, cities };
+    res.json(payload);
+  }),
+);
+
+/** Is this web address (/r/<slug>) free for a new restaurant? */
+publicRouter.get(
+  '/slug-available',
+  asyncHandler(async (req, res) => {
+    const { slug } = parse(slugQuerySchema, pickQuery(req.query, ['slug']));
+    const { data, error } = await anonClient.rpc('slug_available', { p_slug: slug });
+    if (error) throw fromSupabase(error);
+    res.json({ slug, available: Boolean(data) });
   }),
 );

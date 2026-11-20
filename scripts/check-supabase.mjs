@@ -63,6 +63,13 @@ async function main() {
     ok(bills.ok && (await bills.json()).length === 0, 'Row-level security hides bills from the public key');
   }
 
+  const saas = await fetch(`${URL_}/rest/v1/rpc/slug_available`, { method: 'POST', headers: h, body: JSON.stringify({ p_slug: 'saffron-lane' }) });
+  ok(saas.ok, 'Self-signup, platform console & notifications migration (0007) installed', saas.status === 404 ? 'run 0007_saas_platform_notifications.sql' : saas.status);
+  if (saas.ok) {
+    const subs = await fetch(`${URL_}/rest/v1/push_subscriptions?select=id`, { headers: h });
+    ok(subs.ok && (await subs.json()).length === 0, 'Row-level security hides notification subscriptions from the public key');
+  }
+
   const items = await fetch(`${URL_}/rest/v1/menu_items?select=id`, { headers: { ...h, Prefer: 'count=exact', Range: '0-0' } });
   const count = Number((items.headers.get('content-range') ?? '/0').split('/')[1]);
   ok(count === 37, `Menu loaded (${count} dishes)`);

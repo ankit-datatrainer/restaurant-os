@@ -13,6 +13,7 @@ import {
   withSortedItems,
 } from '../../services/orders.js';
 import { orderStatusBodySchema, ordersQuerySchema, paymentStatusBodySchema } from '../../services/schemas.js';
+import { notifyGuestPaid, notifyGuestStatus } from '../../services/push.js';
 
 const DEFAULT_LIMIT = 100;
 const SEARCH_FETCH_LIMIT = 300;
@@ -79,7 +80,9 @@ ordersRouter.patch(
       .maybeSingle();
     if (error) throw fromSupabase(error);
     if (!data) throw notFound('Order not found');
-    res.json(withSortedItems(data as OrderWithItems));
+    const updated = withSortedItems(data as OrderWithItems);
+    notifyGuestStatus(req.auth.db, req.auth.restaurant, updated);
+    res.json(updated);
   }),
 );
 
@@ -99,6 +102,8 @@ ordersRouter.patch(
       .maybeSingle();
     if (error) throw fromSupabase(error);
     if (!data) throw notFound('Order not found');
-    res.json(withSortedItems(data as OrderWithItems));
+    const updated = withSortedItems(data as OrderWithItems);
+    if (payment_status === 'paid') notifyGuestPaid(req.auth.db, req.auth.restaurant, updated);
+    res.json(updated);
   }),
 );

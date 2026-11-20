@@ -2,10 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { GuestShell } from '@/components/guest/guest-shell';
 
-export const metadata: Metadata = {
-  title: 'Menu',
-  description: 'Order from your phone. The kitchen gets it the second you tap Place order.',
-};
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  const { code } = await params;
+  return {
+    title: 'Menu',
+    description: 'Order from your phone. The kitchen gets it the second you tap Place order.',
+    // "Add to Home Screen" reopens this table (needed for order alerts on iPhone).
+    manifest: `/t/${encodeURIComponent(code.toUpperCase())}/app.webmanifest`,
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#F7F4EE',

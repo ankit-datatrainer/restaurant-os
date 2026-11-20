@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Bell, ChefHat, Eye, EyeOff, Receipt, Sparkles, Volume2 } from 'lucide-react';
@@ -78,7 +79,7 @@ export function LoginScreen() {
         >
           <p className="eyebrow">Staff sign in</p>
           <h1 className="mt-3 font-display text-display-sm font-semibold">Open the counter.</h1>
-          <p className="mt-3 text-[15px] text-muted">Sign in with the email your restaurant owner added as staff. The dashboard stays open all day.</p>
+          <p className="mt-3 text-[15px] text-muted">Owners and staff sign in here. The dashboard stays open all day.</p>
 
           <form onSubmit={submit} className="mt-8 grid gap-4 rounded-3xl border border-line/10 bg-surface p-5 shadow-soft sm:p-6" noValidate>
             <Input
@@ -136,7 +137,14 @@ export function LoginScreen() {
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-muted">
+          <p className="mt-6 text-center text-sm text-muted">
+            New to Restaurant OS?{' '}
+            <Link href="/signup" className="font-semibold text-ember hover:underline">
+              Start your free trial
+            </Link>
+          </p>
+
+          <p className="mt-4 text-xs text-muted">
             Demo restaurant: <span className="font-medium text-fg">Saffron Lane Café</span>. Anything you do there resets regularly.
           </p>
         </motion.div>

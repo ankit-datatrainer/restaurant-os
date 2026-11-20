@@ -1,11 +1,14 @@
 import { FOUNDING_OFFER, PLAN_IDS, PLAN_INFO, formatINR, type PlanId } from '@restaurant-os/shared';
-import type { FaqItem } from './faq-data';
+import { SIGNUP_FAQ, type FaqItem } from './faq-data';
 
 export type { PlanId };
 export type Billing = 'monthly' | 'yearly';
 
 /** Every price on the site carries this note. */
 export const PRICE_NOTE = 'excl. GST';
+/** True: self-serve signup starts a Premium trial with every feature and takes no payment details. */
+export const TRIAL_DAYS = 14;
+export const TRIAL_NOTE = `Every plan starts with a ${TRIAL_DAYS}-day free trial of everything. No card needed.`;
 export const PRICE_FOOTNOTE = 'All prices are per outlet, in Indian rupees, and exclude GST and third-party charges (WhatsApp conversation fees charged by Meta, payment gateway charges).';
 
 export interface PlanBullet {
@@ -29,7 +32,10 @@ export interface Plan {
   badge?: string;
   /** "Everything in Starter, plus" line above the bullets. */
   inherits?: string;
+  /** Primary button: the free trial. */
   cta: { label: string; href: string };
+  /** Quiet text link under it: talk to a person instead. */
+  secondaryCta: { label: string; href: string };
   bullets: PlanBullet[];
 }
 
@@ -73,9 +79,9 @@ const BULLETS: Record<PlanId, { inherits?: string; bullets: PlanBullet[] }> = {
   },
 };
 
-const CTA: Record<PlanId, Plan['cta']> = {
+const SECONDARY_CTA: Record<PlanId, Plan['secondaryCta']> = {
   starter: { label: 'Book a demo', href: '/contact?plan=starter' },
-  growth: { label: 'Start with Growth', href: '/contact?plan=growth' },
+  growth: { label: 'Book a demo', href: '/contact?plan=growth' },
   premium: { label: 'Talk to us', href: '/contact?plan=premium' },
 };
 
@@ -91,7 +97,8 @@ export const PLANS: Plan[] = PLAN_IDS.map((id) => {
     yearly: info.yearly,
     highlight: id === 'growth',
     badge: id === 'growth' ? 'Recommended' : undefined,
-    cta: CTA[id],
+    cta: { label: `Start ${TRIAL_DAYS}-day free trial`, href: `/signup?plan=${id}` },
+    secondaryCta: SECONDARY_CTA[id],
     ...BULLETS[id],
   };
 });
@@ -260,6 +267,7 @@ export const BILLED_SEPARATELY: string[] = [
 const g = PLAN_INFO.growth;
 
 export const PRICING_FAQ: FaqItem[] = [
+  ...SIGNUP_FAQ,
   {
     q: 'Do you take a commission on orders?',
     a: 'No. There is no per-order commission on any plan. UPI payments go straight from the guest’s app to your UPI ID, and counter payments never touch us. You pay the plan price per outlet, plus GST.',

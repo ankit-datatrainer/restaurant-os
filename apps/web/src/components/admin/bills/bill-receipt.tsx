@@ -141,6 +141,7 @@ export function BillReceipt({ billId }: { billId: string }) {
               {restaurant.phone && restaurant.gstin && ' · '}
               {restaurant.gstin && <span>GSTIN {restaurant.gstin}</span>}
             </p>
+            {restaurant.fssai_number && <p className="mt-0.5 font-mono text-2xs uppercase tracking-[0.12em] text-ink/60">FSSAI Lic. No. {restaurant.fssai_number}</p>}
             <p className="mt-3 font-mono text-2xs font-semibold uppercase tracking-[0.18em] text-ink/70">{restaurant.gstin ? 'Tax invoice' : 'Receipt'}</p>
           </header>
 

@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Copy, Database, Download, ExternalLink, Info, Save } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Copy, Database, Download, ExternalLink, Info, ListChecks, Save } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import type { Restaurant } from '@restaurant-os/shared';
@@ -15,6 +16,8 @@ import { useAdmin } from './admin-provider';
 import { PageHeader } from './page-header';
 import { errorMessage } from './format';
 import { InGrowthTag, isManagerRole } from './plan';
+import { DeviceAlertsPanel, useDeviceAlerts } from './device-alerts';
+import { showSetupChecklist } from './setup-checklist';
 
 interface Draft {
   name: string;
@@ -46,6 +49,11 @@ interface Draft {
   reservation_minutes: string;
   open_time: string;
   close_time: string;
+  // SaaS profile (migration 0007): sent only when changed, so databases without it keep saving
+  city: string;
+  cuisine: string;
+  fssai_number: string;
+  listed: boolean;
 }
 
 /** "15:30:00" → "15:30" for <input type="time">. */
@@ -82,6 +90,10 @@ function toDraft(r: Restaurant): Draft {
     reservation_minutes: String(r.reservation_minutes ?? 90),
     open_time: hhmm(r.open_time, '11:00'),
     close_time: hhmm(r.close_time, '23:00'),
+    city: r.city ?? '',
+    cuisine: r.cuisine ?? '',
+    fssai_number: r.fssai_number ?? '',
+    listed: r.listed ?? false,
   };
 }
 
@@ -93,6 +105,9 @@ const MAX_SERVICE_CHARGE = 20;
 const MAX_STORY_TITLE = 80;
 const MAX_STORY_TEXT = 800;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_CITY = 60;
+const MAX_CUISINE = 80;
+const FSSAI_RE = /^\d{14}$/;
 
 /** Field-level messages from the API's zod `flatten()` payload, keyed by draft field. */
 function serverFieldErrors(err: unknown): Errors | null {
@@ -114,6 +129,7 @@ export function SettingsForm() {
   const [errors, setErrors] = React.useState<Errors>({});
   const [saving, setSaving] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
+  const router = useRouter();
 
   // Keep in sync if the restaurant changes elsewhere (e.g. the open toggle in the topbar).
   React.useEffect(() => {
@@ -169,6 +185,12 @@ export function SettingsForm() {
     if (!Number.isInteger(prep) || prep < 5 || prep > 240) next.takeaway_prep_minutes = 'Whole minutes from 5 to 240.';
     const booking = Number(draft.reservation_minutes);
     if (!Number.isInteger(booking) || booking < 15 || booking > 480) next.reservation_minutes = 'Whole minutes from 15 to 480.';
+    const city = draft.city.trim();
+    if (city.length > MAX_CITY) next.city = `Keep the city under ${MAX_CITY} characters.`;
+    const cuisine = draft.cuisine.trim();
+    if (cuisine.length > MAX_CUISINE) next.cuisine = `Keep it under ${MAX_CUISINE} characters.`;
+    const fssai = draft.fssai_number.replace(/\s+/g, '');
+    if (fssai && !FSSAI_RE.test(fssai)) next.fssai_number = 'The FSSAI number is 14 digits, e.g. 12345678901234.';
     if (!TIME_RE.test(draft.open_time)) next.open_time = 'Use a 24-hour time like 11:00.';
     if (!TIME_RE.test(draft.close_time)) next.close_time = 'Use a 24-hour time like 23:00.';
     else if (draft.close_time === draft.open_time) next.close_time = 'Closing time must differ from opening time.';
@@ -183,6 +205,11 @@ export function SettingsForm() {
     if (draft.reservation_minutes !== before.reservation_minutes) onlineOrdering.reservation_minutes = booking;
     if (draft.open_time !== before.open_time) onlineOrdering.open_time = draft.open_time;
     if (draft.close_time !== before.close_time) onlineOrdering.close_time = draft.close_time;
+    const profile: Partial<Restaurant> = {};
+    if (draft.city !== before.city) profile.city = city || null;
+    if (draft.cuisine !== before.cuisine) profile.cuisine = cuisine || null;
+    if (draft.fssai_number !== before.fssai_number) profile.fssai_number = fssai || null;
+    if (draft.listed !== before.listed) profile.listed = draft.listed;
     const guestExperience: Partial<Restaurant> = growth
       ? {
           google_review_url: draft.google_review_url.trim() || null,
@@ -197,6 +224,7 @@ export function SettingsForm() {
     return {
       ...guestExperience,
       ...onlineOrdering,
+      ...profile,
       name,
       tagline: draft.tagline.trim() || null,
       logo_url: draft.logo_url.trim() || null,
@@ -264,11 +292,23 @@ export function SettingsForm() {
       )}
 
       <div className="space-y-4">
-        <Card>
+        <Card id="identity" className="scroll-mt-24">
           <CardHeader title="Identity" description="Name, tagline and images on the guest menu." />
           <CardBody className="grid gap-4 pt-4">
             <Input label="Restaurant name" value={draft.name} onChange={(e) => set('name', e.target.value)} error={errors.name} />
             <Input label="Tagline" value={draft.tagline} onChange={(e) => set('tagline', e.target.value)} placeholder="Slow coffee, fast kitchen." hint="One line under the name on the menu and the bill." />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="City" value={draft.city} onChange={(e) => set('city', e.target.value)} placeholder="Bengaluru" maxLength={MAX_CITY} error={errors.city} hint="Shown on your restaurant page and in the directory." />
+              <Input
+                label="Cuisine"
+                value={draft.cuisine}
+                onChange={(e) => set('cuisine', e.target.value)}
+                placeholder="South Indian · Café"
+                maxLength={MAX_CUISINE}
+                error={errors.cuisine}
+                hint="What you serve, in a few words."
+              />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Logo URL" value={draft.logo_url} onChange={(e) => set('logo_url', e.target.value)} placeholder="https://…/logo.png" error={errors.logo_url} />
               <Input label="Cover image URL" value={draft.cover_url} onChange={(e) => set('cover_url', e.target.value)} placeholder="https://…/cover.jpg" error={errors.cover_url} />
@@ -276,7 +316,7 @@ export function SettingsForm() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card id="contact" className="scroll-mt-24">
           <CardHeader title="Contact & tax identity" description="Printed on every bill." />
           <CardBody className="grid gap-4 pt-4">
             <Textarea label="Address" value={draft.address} onChange={(e) => set('address', e.target.value)} placeholder="12, 4th Cross, Indiranagar, Bengaluru 560038" className="min-h-[72px]" />
@@ -284,10 +324,21 @@ export function SettingsForm() {
               <Input label="Phone" inputMode="tel" value={draft.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+91 98450 00000" />
               <Input label="GSTIN" value={draft.gstin} onChange={(e) => set('gstin', e.target.value.toUpperCase())} placeholder="29ABCDE1234F1Z5" error={errors.gstin} className="font-mono uppercase" />
             </div>
+            <Input
+              label="FSSAI licence number"
+              inputMode="numeric"
+              autoComplete="off"
+              value={draft.fssai_number}
+              onChange={(e) => set('fssai_number', e.target.value.replace(/[^\d\s]/g, '').slice(0, 17))}
+              placeholder="12345678901234"
+              error={errors.fssai_number}
+              hint="14 digits. Mandatory on every bill in India since Oct 2021; printed under your GSTIN."
+              className="tnum font-mono"
+            />
           </CardBody>
         </Card>
 
-        <Card>
+        <Card id="payments" className="scroll-mt-24">
           <CardHeader title="Payments" description="Guests can pay by UPI from their phone or at the counter." />
           <CardBody className="grid gap-4 pt-4">
             <Toggle checked={draft.accepts_upi} onChange={(v) => set('accepts_upi', v)} label="Accept UPI" description="Guests get a pay button that opens GPay, PhonePe or any UPI app" />
@@ -324,7 +375,7 @@ export function SettingsForm() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card id="guest-experience" className="scroll-mt-24">
           <CardHeader
             title="Guest experience"
             description="What guests see while they wait and after they eat."
@@ -348,8 +399,17 @@ export function SettingsForm() {
               placeholder="https://g.page/r/…/review"
               error={errors.google_review_url}
               disabled={!growth}
-              hint="Google Business Profile → Ask for reviews → copy link. Shown to every guest after they rate their meal — Google does not allow showing it only to happy guests or offering rewards."
+              hint="Shown to every guest after they rate their meal — Google does not allow showing it only to happy guests or offering rewards."
             />
+            <details className="-mt-2 rounded-xl bg-sunk px-3.5 py-2.5 text-sm">
+              <summary className="cursor-pointer select-none font-medium text-fg/80 marker:text-muted">How do I find it?</summary>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted">
+                <li>Open your Google Business Profile: search your restaurant’s name on Google while signed in, or go to business.google.com.</li>
+                <li>Choose Read reviews or Ask for reviews.</li>
+                <li>Under Get more reviews, copy the review link.</li>
+                <li>Paste it here. It looks like https://g.page/r/…/review.</li>
+              </ol>
+            </details>
             <div className="grid gap-4 border-t border-line/5 pt-4">
               <Toggle
                 checked={draft.feedback_enabled}
@@ -524,6 +584,28 @@ export function SettingsForm() {
           </CardBody>
         </Card>
 
+        <Card id="directory" className="scroll-mt-24">
+          <CardHeader title="Restaurant OS directory" description="Let diners find you in the Restaurant OS restaurant directory." />
+          <CardBody className="grid gap-4 pt-4">
+            <Toggle
+              checked={draft.listed}
+              onChange={(v) => set('listed', v)}
+              label="List my restaurant in the Restaurant OS directory"
+              description="Shows your name, city, cuisine, cover photo, opening hours and a link to your restaurant page. Nothing about your orders or guests."
+            />
+            {draft.listed && !(draft.city.trim() && draft.cuisine.trim()) && (
+              <p className="rounded-xl bg-sunk px-3.5 py-2.5 text-sm text-fg/80">Add your city and cuisine under Identity so diners can find you when they filter.</p>
+            )}
+            <div>
+              <Button href="/restaurants" external size="sm" variant="outline" leftIcon={<ExternalLink className="h-3.5 w-3.5" />}>
+                View directory
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+
+        <NotificationsCard />
+
         <Card>
           <CardHeader title="Orders" description="Pause ordering during a rush or after closing." />
           <CardBody className="pt-4">
@@ -565,6 +647,25 @@ export function SettingsForm() {
           </Card>
         )}
 
+        {isManagerRole(staff.role) && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-line/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted">The setup checklist on the dashboard walks you through everything a new restaurant needs.</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              leftIcon={<ListChecks className="h-4 w-4" />}
+              className="shrink-0 self-start sm:self-auto"
+              onClick={() => {
+                showSetupChecklist(restaurant.id);
+                router.push('/admin');
+              }}
+            >
+              Show setup checklist
+            </Button>
+          </div>
+        )}
+
         <div className="flex justify-end pb-4">
           <Button type="submit" loading={saving} leftIcon={<Save className="h-4 w-4" />} disabled={!dirty && !saving}>
             Save changes
@@ -572,5 +673,18 @@ export function SettingsForm() {
         </div>
       </div>
     </form>
+  );
+}
+
+/** "Alerts on this device": the same control as the topbar bell. */
+function NotificationsCard() {
+  const alerts = useDeviceAlerts();
+  return (
+    <Card id="notifications" className="scroll-mt-24">
+      <CardHeader title="Notifications" description="Applies to this phone or laptop only. Turn it on on every device that should ring." />
+      <CardBody className="pt-4">
+        <DeviceAlertsPanel alerts={alerts} />
+      </CardBody>
+    </Card>
   );
 }

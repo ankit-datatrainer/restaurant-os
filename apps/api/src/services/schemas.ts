@@ -304,6 +304,14 @@ export const restaurantUpdateSchema = z.object({
   reservation_minutes: z.number().int().min(15).max(480).optional(),
   open_time: timeOfDay.optional(),
   close_time: timeOfDay.optional(),
+  // SaaS profile (0007). plan / status / trial are managed by the platform owner only.
+  city: nullableText(60).optional(),
+  cuisine: nullableText(80).optional(),
+  fssai_number: z.preprocess(
+    (v) => (typeof v === 'string' ? v.replace(/\s+/g, '') || null : v),
+    z.string().regex(/^\d{14}$/, 'The FSSAI licence number has 14 digits').nullable().optional(),
+  ),
+  listed: z.boolean().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -694,4 +702,61 @@ export const auditQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
   entity: z.enum(['orders', 'bills', 'menu_items', 'staff', 'stock_movements', 'cash_closings', 'coupons', 'restaurants']).optional(),
   before: z.coerce.number().int().min(1).optional(),
+});
+
+// ---------------------------------------------------------------------------
+// SaaS platform + push (migration 0007)
+// ---------------------------------------------------------------------------
+
+const slugField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/, 'Use 3 to 40 lowercase letters, numbers and dashes');
+
+export const slugQuerySchema = z.object({ slug: z.string().trim().toLowerCase().max(60) });
+
+export const createRestaurantSchema = z.object({
+  name: text(80).min(2, 'Add your restaurant name'),
+  slug: slugField,
+  city: optionalText(60),
+  phone: optionalText(30),
+  owner_name: optionalText(60),
+  tables: z.number().int().min(1, 'At least 1 table').max(100, 'Up to 100 tables to start; add more later'),
+  sample_menu: z.boolean().optional(),
+});
+
+export const directoryQuerySchema = z.object({
+  q: text(60).optional(),
+  city: text(60).optional(),
+});
+
+const pushSubscription = z.object({
+  endpoint: z
+    .string()
+    .trim()
+    .url()
+    .max(1000)
+    .refine((u) => u.startsWith('https://'), 'Invalid push endpoint'),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(4).max(100) }),
+});
+
+export const guestPushSchema = z
+  .object({
+    table_code: tableCodeSchema.optional(),
+    restaurant_slug: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{2,60}$/, 'Unknown restaurant').optional(),
+    guest_session_id: uuid('guest_session_id'),
+    subscription: pushSubscription,
+  })
+  .refine((v) => Boolean(v.table_code || v.restaurant_slug), { message: 'Unknown restaurant', path: ['table_code'] });
+
+export const staffPushSchema = z.object({ subscription: pushSubscription });
+export const pushEndpointSchema = z.object({ endpoint: z.string().trim().url().max(1000) });
+
+export const platformUpdateSchema = z.object({
+  plan: z.enum(['starter', 'growth', 'premium']).optional(),
+  status: z.enum(['active', 'suspended']).optional(),
+  trial_ends_at: isoInstant.optional(),
+  end_trial: z.boolean().optional(),
+  listed: z.boolean().optional(),
 });

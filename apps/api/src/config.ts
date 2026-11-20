@@ -22,6 +22,13 @@ export const config = {
   supabaseUrl: required('SUPABASE_URL'),
   supabaseAnonKey: required('SUPABASE_ANON_KEY'),
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || null,
+  // Web Push (order notifications). Both keys come from `npx web-push generate-vapid-keys`.
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null,
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || null,
+  /** Contact for push services: a mailto: or https: URL. Defaults to the website. */
+  vapidSubject:
+    process.env.VAPID_SUBJECT ||
+    (/^https:\/\//.test(process.env.APP_URL ?? '') ? (process.env.APP_URL as string).replace(/\/$/, '') : 'mailto:hello@restaurantos.app'),
   demoAdminEmail: process.env.DEMO_ADMIN_EMAIL ?? 'demo@restaurantos.app',
   demoAdminPassword: process.env.DEMO_ADMIN_PASSWORD ?? 'demo1234',
 } as const;

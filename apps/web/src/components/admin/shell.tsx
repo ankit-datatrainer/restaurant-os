@@ -14,6 +14,7 @@ import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { NotificationLayer } from './notification-layer';
 import { NavLock, planName } from './plan';
+import { AccountBanner } from './account-banner';
 
 /**
  * The counter dashboard frame: dark sidebar (desktop), topbar, bottom tab bar (phones),
@@ -28,6 +29,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <Topbar title={title} />
       <main className="gutter pb-28 pt-5 md:pb-12 md:pt-7 print:p-0">
+        <AccountBanner />
         <LoadErrorBanner />
         {children}
       </main>

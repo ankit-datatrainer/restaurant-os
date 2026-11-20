@@ -3,9 +3,12 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import type { AssistanceCall, DiningTable, Order, OrderItem, OrderStatus, OrderWithItems, PaymentStatus, Restaurant, Staff } from '@restaurant-os/shared';
-import { planHas } from '@restaurant-os/shared';
+import { orderCode, planHas, tableDisplay } from '@restaurant-os/shared';
 import { adminApi } from '@/lib/api';
 import { stopSpeaking } from '@/lib/audio';
+import { notifyLocal, type LocalNotification } from '@/lib/push';
+import { formatINR } from '@/lib/utils';
+import { localAlertsMuted } from './alert-prefs';
 import { useAuth } from '@/lib/auth';
 import { useAdminData } from './use-admin-data';
 import { isActiveStatus, useRealtime, type ConnectionStatus } from './use-realtime';
@@ -54,6 +57,69 @@ function upsertActive(list: OrderWithItems[], order: OrderWithItems): OrderWithI
 }
 
 const BANNER_MS = 12_000;
+
+// --- System notifications while the dashboard is open but hidden -------------------------------
+// Same titles and tags as the server's Web Push (apps/api/src/services/push.ts), so a device that
+// gets both shows one notification: the browser replaces a notification with the same tag.
+
+/** "2× Masala Dosa, 1× Filter Coffee +2 more" */
+function itemsLine(items: Array<{ quantity: number; name: string }>): string {
+  const names = items.slice(0, 3).map((i) => `${i.quantity}× ${i.name}`);
+  return names.join(', ') + (items.length > 3 ? ` +${items.length - 3} more` : '');
+}
+
+/** "Table 5", "Takeaway · Priya" or "Counter". */
+function orderWhere(order: OrderWithItems): string {
+  if (order.order_type === 'takeaway' || (!order.order_type && !order.table_id)) return `Takeaway${order.guest_name ? ` · ${order.guest_name}` : ''}`;
+  if (!order.table_id && !order.table) return 'Counter';
+  return tableDisplay(order.table);
+}
+
+const CALL_LABEL: Record<AssistanceCall['type'], string> = {
+  waiter: 'is calling a waiter',
+  water: 'needs water',
+  cutlery: 'needs cutlery',
+  bill: 'asked for the bill',
+  other: 'needs help',
+};
+
+function systemNotify(n: LocalNotification): void {
+  if (localAlertsMuted()) return;
+  notifyLocal(n).catch(() => undefined);
+}
+
+function notifyNewOrder(order: OrderWithItems): void {
+  const items = itemsLine(order.items);
+  systemNotify({
+    title: `New order ${orderCode(order.order_number)} · ${orderWhere(order)}`,
+    body: [items, formatINR(Number(order.total))].filter(Boolean).join(' · '),
+    url: '/admin/orders',
+    tag: `staff-order-${order.id}`,
+    requireInteraction: true,
+    vibrate: [300, 120, 300],
+  });
+}
+
+function notifyAdded(order: OrderWithItems, added: OrderItem[]): void {
+  systemNotify({
+    title: `Dishes added · ${orderCode(order.order_number)}`,
+    body: added.length ? `${orderWhere(order)} · ${itemsLine(added)}` : `${orderWhere(order)} added dishes to this order.`,
+    url: '/admin/orders',
+    tag: `staff-order-${order.id}`,
+    vibrate: [300, 120, 300],
+  });
+}
+
+function notifyNewCall(call: AssistanceCall): void {
+  systemNotify({
+    title: `${tableDisplay(call.table ?? null)} ${CALL_LABEL[call.type] ?? 'needs help'}`,
+    body: call.note ? `“${call.note}”` : 'Tap to open Calls.',
+    url: '/admin/calls',
+    tag: `staff-call-${call.id}`,
+    requireInteraction: true,
+    vibrate: [200, 80, 200, 80, 200],
+  });
+}
 
 export interface AdminContextValue {
   token: string;
@@ -179,6 +245,7 @@ function AdminProviderInner({
       }
       const count = added.length ? added.reduce((n, i) => n + i.quantity, 0) : null;
       sound.notifyItemsAdded(order, count);
+      notifyAdded(order, added);
       pushBanner({ id: `${order.id}:added:${order.items_added_at ?? Date.now()}`, kind: 'added', order, added });
     },
     [sound, pushBanner],
@@ -216,6 +283,7 @@ function AdminProviderInner({
         const mine = order.source === 'pos' && order.placed_by === staff.id;
         if (!mine) {
           sound.notifyOrder(order);
+          notifyNewOrder(order);
           pushBanner({ id: order.id, kind: 'new', order });
         }
         emit({ type: 'order:new', order });
@@ -282,6 +350,7 @@ function AdminProviderInner({
       if (full.status !== 'open') return;
       setCalls((prev) => (prev.some((c) => c.id === full.id) ? prev : [full, ...prev]));
       sound.notifyCall(full);
+      notifyNewCall(full);
       emit({ type: 'call:new', call: full });
     },
     [enrichCall, setCalls, sound, emit],

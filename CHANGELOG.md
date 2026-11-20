@@ -7,9 +7,12 @@ Each step says what changed, where, and how it was checked.
 
 1. ~~Run 0004~~ and ~~0005~~ — done (verified on your project 26 Oct 2026).
 2. ~~Run 0006~~ and ~~`cleanup_test_data.sql`~~ — done (verified on your project 26 Oct 2026, Step 22).
-3. Before real guests: switch the demo café's takeaway / booking off (Settings) if you don't want them yet, and replace the demo coupons, happy hour, ingredients and suppliers with your own.
-4. In the dashboard → Settings → Guest experience, replace the demo Google review link with your restaurant's real one (Google Business Profile → Ask for reviews).
-5. Have the privacy notice (`/privacy`) reviewed by your legal advisor before real customers use it.
+3. **Run `supabase/migrations/0007_saas_platform_notifications.sql`** in your Supabase SQL editor (round 4: signup, console, notifications).
+4. Give yourself console access (SQL editor): `insert into public.platform_admins (user_id) select id from auth.users where email = 'YOUR LOGIN EMAIL';`
+5. Supabase → Authentication → URL Configuration: add `https://restaurantos.peculiex.com/admin/login` to Redirect URLs (signup confirmation emails land there).
+6. Before real guests: switch the demo café's takeaway / booking off (Settings) if you don't want them yet, and replace the demo coupons, happy hour, ingredients and suppliers with your own.
+7. In the dashboard → Settings → Guest experience, replace the demo Google review link with your restaurant's real one (Google Business Profile → Ask for reviews).
+8. Have the privacy notice (`/privacy`) reviewed by your legal advisor before real customers use it.
 
 ---
 
@@ -313,3 +316,54 @@ for everything built, and an honest "Not built yet" list.
 | Cleanup | No orders, customers, feedback, bills, bookings, expenses or test records left; stock at the demo starting levels; coupons unused |
 | Browser on your project | Floor (8 free tables), Inventory, Customers and the restaurant page load with your data |
 | Writes (orders, bills, refunds, stock, purchase orders) | Tested end to end on the staging copy (87 / 87) with byte-identical database functions; not repeated here so your data stays clean |
+
+---
+
+# Round 4 — Multi-restaurant SaaS, "while you wait" flow, live notifications (21 Nov 2026)
+
+## Step 23 — Database (migration `supabase/migrations/0007_saas_platform_notifications.sql`)
+
+| # | Change |
+|---|---|
+| 23.1 | Restaurants get `city`, `cuisine`, `fssai_number` (printed on bills — mandatory in India since Oct 2021), `listed` (public directory opt-in), `status` (active / suspended) and `trial_ends_at`. Only the Restaurant OS team (or SQL) can change plan, status or trial. A suspended restaurant cannot take new orders. |
+| 23.2 | **Self-signup**: `create_restaurant` makes a signed-in account the owner of a new restaurant on a 14-day Premium trial, creates its tables with QR codes and (optionally) copies the demo café's 37-dish menu to edit. One restaurant per account. `slug_available` checks the web address. |
+| 23.3 | **Platform console** data: `platform_admins` (your team), overview, all restaurants with owner email / tables / dishes / orders / GMV, update plan · status · trial · listing, and contact-form leads. |
+| 23.4 | **Web Push**: `push_subscriptions` for guests (per guest session) and staff devices, with guarded functions so a guest can only reach the restaurant's staff for the order or call they just made. |
+| 23.5 | Fix: deleting a whole restaurant no longer fails on the activity log. |
+
+**Checked on staging:** SQL test (signup with sample menu, second restaurant refused, owner can't change plan/trial, console admin-only, suspend blocks orders, push targets only for the right guest), then 42 API checks.
+
+## Step 24 — API
+
+New: `/api/account/restaurant` (signup), `/api/platform/*` (console), `/api/public/directory`, `/api/public/slug-available`, `/api/public/push/*` (guest notifications), `/api/admin/push/*` (staff alerts + test).
+Notifications are sent automatically: **guests** on Order confirmed (accepted), Being prepared, Ready (stays on screen), Served ("rate your meal"), Cancelled, Payment received and "someone is on the way" for waiter calls; **staff devices** on every new guest order, added dishes and waiter calls. Push keys live only in `apps/api/.env` / the server's env file.
+
+## Step 25 — Guests
+
+| # | Change |
+|---|---|
+| 25.1 | **While you wait**: after placing an order, the restaurant's story / legacy video plays full screen with a **Skip** button, then "While your food is cooking" with Play a game, Track my order, the live status and a "Get notified" card. Shown once per order. |
+| 25.2 | **Live order updates on every page** (menu, My orders, tracker, every game): a banner at the top with the new status, vibration, a soft chime, a flashing tab title, and a phone notification when the page is in the background. "Ready" stays until dismissed. |
+| 25.3 | **Notifications with the phone locked** (Web Push): one tap to turn on after ordering. Android Chrome: works in the browser. iPhone: after "Add to Home Screen" (each table/restaurant page installs as its own app that reopens the same page). |
+| 25.4 | **Google review** after the meal: "Enjoy your meal — rate it" → rating card, and a "Review on Google" button shown to every guest (never only to good ratings — Google's rules). |
+| 25.5 | Takeaway pages (`/r/<slug>/orders`) get the same live updates and notifications. Hindi added for all new guest text. |
+
+## Step 26 — Restaurants and you
+
+| # | Change |
+|---|---|
+| 26.1 | **/signup** — 2 steps (account, restaurant) with live web-address check and suggestions; email-confirmation aware; **/admin/setup** finishes setup after confirming; the old "not linked to a restaurant" dead end now offers "Set up a new restaurant" or "Join with an invite code"; welcome dialog on first open. |
+| 26.2 | **Setup checklist** on the dashboard (profile, GSTIN + FSSAI, UPI, menu, tables & QR, Google link, story video, team, test order, directory), trial / suspended banners, Plan & billing shows the trial. |
+| 26.3 | **Alerts on this device** (bell in the top bar + Settings → Notifications): new orders and waiter calls ring even with the dashboard closed; "Send a test alert". |
+| 26.4 | Settings: city, cuisine, FSSAI number, "List my restaurant in the directory", help for finding the Google review link. Bills print the FSSAI number. |
+| 26.5 | **/platform** — Restaurant OS console for your team: KPIs, every restaurant (search, filters), change plan, extend / end trial, suspend / reactivate, list / unlist, leads with CSV export. |
+| 26.6 | **/restaurants** — public directory (search, city chips, open now, takeaway / booking chips). Website CTAs now say "Start free trial" → /signup; nav + footer link to Restaurants; trial FAQ. |
+
+## Step 27 — Checks for round 4
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run build` | Clean; new pages /signup, /admin/setup, /platform, /restaurants, /t/[code]/wait |
+| API test on staging | **42 / 42** (signup, console, directory, suspend, push subscribe/unsubscribe, notifications on every status, failed deliveries cleaned up) |
+| Browser on staging | New owner → setup → dashboard with welcome + checklist + trial banner; guest order → video with Skip → "While your food is cooking" → game page shows **Order confirmed**, **Ready!**, **Enjoy your meal — Rate it** banners as the kitchen moves the order; tracker shows rating + Google review; directory; console (admin-only) |
+| Not testable here | A real phone notification (needs a phone with the live site) — see "How to test" in the report |

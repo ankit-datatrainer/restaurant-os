@@ -7,6 +7,7 @@ import { cn, tableUrl } from '@/lib/utils';
 import { LogoMark } from '@/components/ui';
 import { useAdmin } from './admin-provider';
 import { SoundControls } from './sound-controls';
+import { DeviceAlertsButton } from './device-alerts';
 import { ClockPill } from './staff/clock-pill';
 import { useConfirm } from './confirm-dialog';
 import type { ConnectionStatus } from './use-realtime';
@@ -65,6 +66,7 @@ export function Topbar({ title }: { title: string }) {
 
         <ConnectionDot status={connection} />
         <SoundControls compact />
+        <DeviceAlertsButton />
         <ClockPill />
 
         {firstTable && (

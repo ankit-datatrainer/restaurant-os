@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import * as React from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowUpRight, Bell, CalendarCheck, Repeat2, Volume2 } from 'lucide-react';
@@ -62,18 +63,26 @@ export function Hero() {
 
           <Reveal delay={0.7} className="mt-9 flex flex-wrap items-center gap-3">
             <Magnetic>
-              <Button href="/contact?plan=demo" size="xl" leftIcon={<CalendarCheck className="h-5 w-5" aria-hidden />}>
-                Book a 5-minute demo
+              <Button href="/signup" size="xl" rightIcon={<ArrowUpRight className="h-5 w-5" aria-hidden />}>
+                Start free trial
               </Button>
             </Magnetic>
             <Magnetic>
-              <Button href="/demo" variant="outline" size="xl" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
-                Open live demo
+              <Button href="/contact?plan=demo" variant="outline" size="xl" leftIcon={<CalendarCheck className="h-5 w-5" aria-hidden />}>
+                Book a 5-minute demo
               </Button>
             </Magnetic>
           </Reveal>
 
-          <Reveal delay={0.85} className="mt-10 flex flex-wrap gap-x-7 gap-y-2 font-mono text-xs text-muted">
+          <Reveal as="p" delay={0.78} className="mt-4 text-sm text-muted">
+            14 days of everything, no card needed. Or{' '}
+            <Link href="/demo" className="font-semibold text-fg underline-offset-4 hover:text-ember hover:underline">
+              open the live demo
+            </Link>{' '}
+            first.
+          </Reveal>
+
+          <Reveal delay={0.85} className="mt-8 flex flex-wrap gap-x-7 gap-y-2 font-mono text-xs text-muted">
             {FACTS.map((f) => (
               <span key={f} className="flex items-center gap-2">
                 <span className="h-1 w-1 rounded-full bg-ember" aria-hidden />

@@ -81,8 +81,11 @@ export function Nav() {
               <Button href="/admin/login" variant="ghost" size="sm" className="text-paper/80 hover:bg-paper/10 hover:text-paper">
                 Staff login
               </Button>
-              <Button href="/contact?plan=demo" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
+              <Button href="/contact?plan=demo" variant="ghost" size="sm" className="hidden text-paper/80 hover:bg-paper/10 hover:text-paper xl:inline-flex">
                 Book a demo
+              </Button>
+              <Button href="/signup" size="sm" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
+                Start free trial
               </Button>
             </div>
 

@@ -101,13 +101,17 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-4">
-                <Button href="/contact?plan=demo" size="lg">
+                <Button href="/signup" size="lg" className="col-span-2" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
+                  Start free trial
+                </Button>
+                <Button href="/contact?plan=demo" variant="outline" size="lg">
                   Book a demo
                 </Button>
                 <Button href="/admin/login" variant="outline" size="lg">
                   Staff login
                 </Button>
               </div>
+              <p className="-mt-2 pb-4 text-center font-mono text-2xs uppercase tracking-[0.14em] text-muted">14 days of everything · No card needed</p>
             </motion.div>
           </div>
         </motion.div>

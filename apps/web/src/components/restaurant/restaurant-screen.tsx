@@ -19,6 +19,7 @@ import { HappyHourBanner, categoryServing, happyHourPercent, runningHappyHours, 
 import { ItemSheet } from '@/components/guest/item-sheet';
 import { useHydrated } from '@/components/guest/use-hydrated';
 import { useScrollSpy } from '@/components/guest/use-scroll-spy';
+import { useOrderWatcher } from '@/components/guest/order-watcher';
 import type { CartLine } from '@/store/cart';
 import { BookingSheet } from './booking-sheet';
 import { hoursText, openState } from './hours';
@@ -86,6 +87,7 @@ export function RestaurantScreen() {
   const router = useRouter();
   const reduce = Boolean(useReducedMotion());
   const { slug, data, loading, error, refresh, session } = useRestaurant();
+  const watcher = useOrderWatcher();
   const hydrated = useHydrated();
   const now = useClock(30_000);
 
@@ -211,6 +213,8 @@ export function RestaurantScreen() {
   const handlePlaced = (order: OrderWithItems) => {
     setCheckoutOpen(false);
     toast.success(`Order ${orderCode(order.order_number)} placed`);
+    // Watch it from now on (banners and alerts on every page of the restaurant).
+    watcher?.track(order);
     router.push(`/r/${slug}/orders?placed=${order.id}`);
   };
 

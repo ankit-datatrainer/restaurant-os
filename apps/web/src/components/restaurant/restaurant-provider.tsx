@@ -7,6 +7,9 @@ import type { RestaurantPageResponse } from '@restaurant-os/shared';
 import { planHas } from '@restaurant-os/shared';
 import { ApiRequestError, publicApi } from '@/lib/api';
 import { useOnline } from '@/components/guest/use-online';
+import { safeHttpUrl } from '@/components/guest/features';
+import { takeawayScope } from '@/components/guest/notify-prefs';
+import { OrderWatcherProvider } from '@/components/guest/order-watcher';
 import { getTakeawaySession, type TakeawaySession } from './takeaway-session';
 
 export interface PageError {
@@ -135,9 +138,35 @@ export function RestaurantShell({ slug, children }: { slug: string; children: Re
               <p className="min-w-0">You&apos;re offline. Reconnect to order or book.</p>
             </div>
           )}
-          {children}
+          <TakeawayOrderWatcher>{children}</TakeawayOrderWatcher>
         </div>
       </div>
     </RestaurantProvider>
+  );
+}
+
+/**
+ * Takeaway order watcher for /r/[slug] pages: status banners, buzz, chime, tab-title flash and
+ * system alerts for this phone's takeaway orders (see components/guest/order-watcher.tsx).
+ * Checks once on load and stops when the phone has no takeaway orders here.
+ */
+function TakeawayOrderWatcher({ children }: { children: React.ReactNode }) {
+  const { slug, data, session } = useRestaurant();
+  const restaurant = data?.restaurant ?? null;
+  const sessionId = session?.id ?? null;
+  const fetchOrders = React.useCallback(() => (sessionId ? publicApi.takeawayOrders(slug, sessionId) : Promise.resolve([])), [slug, sessionId]);
+  const hrefFor = React.useCallback(() => `/r/${slug}/orders`, [slug]);
+  return (
+    <OrderWatcherProvider
+      kind="takeaway"
+      scope={takeawayScope(slug)}
+      enabled={Boolean(sessionId && takeawayOn(restaurant))}
+      fetchOrders={fetchOrders}
+      hrefFor={hrefFor}
+      rateable={Boolean(safeHttpUrl(restaurant?.google_review_url))}
+      restaurantName={restaurant?.name}
+    >
+      {children}
+    </OrderWatcherProvider>
   );
 }

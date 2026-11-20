@@ -81,6 +81,13 @@ import type {
   Supplier,
   WaitlistEntry,
   WaitlistStatus,
+  // SaaS platform (0007)
+  CreateRestaurantInput,
+  DirectoryResponse,
+  PlatformOverview,
+  PlatformRestaurant,
+  PlatformRestaurantUpdate,
+  PushSubscriptionJSON,
 } from '@restaurant-os/shared';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
@@ -209,6 +216,39 @@ export const publicApi = {
   takeawayOrders: (slug: string, guestSessionId: string, signal?: AbortSignal) =>
     request<OrderWithItems[]>('/api/public/takeaway-orders', { query: { restaurant: slug, session: guestSessionId }, signal }),
   requestReservation: (input: ReservationRequestInput) => request<ReservationRequestResult>('/api/public/reservations', { body: input }),
+
+  // ----- Notifications + SaaS (0007) -----
+  /** VAPID public key; `enabled: false` when this server has no push keys. */
+  pushConfig: () => request<{ enabled: boolean; publicKey: string | null }>('/api/public/push/config'),
+  /** This phone wants order updates for its guest session (table code for dine-in, slug for takeaway). */
+  guestPushSubscribe: (body: { table_code?: string; restaurant_slug?: string; guest_session_id: string; subscription: PushSubscriptionJSON }) =>
+    request<{ ok: true }>('/api/public/push/subscribe', { body }),
+  pushUnsubscribe: (endpoint: string) => request<{ ok: true }>('/api/public/push/unsubscribe', { body: { endpoint } }),
+  /** Restaurants listed in the public directory. */
+  directory: (filter: { q?: string; city?: string } = {}, signal?: AbortSignal) =>
+    request<DirectoryResponse>('/api/public/directory', { query: filter, signal }),
+  slugAvailable: (slug: string, signal?: AbortSignal) =>
+    request<{ slug: string; available: boolean }>('/api/public/slug-available', { query: { slug }, signal }),
+};
+
+// ---------------------------------------------------------------------------
+// Account (signed in, not necessarily staff yet) — self-signup
+// ---------------------------------------------------------------------------
+export const accountApi = {
+  /** Creates the restaurant (14-day trial) with this account as its owner. */
+  createRestaurant: (token: string, body: CreateRestaurantInput) => request<Restaurant>('/api/account/restaurant', { token, body }),
+};
+
+// ---------------------------------------------------------------------------
+// Platform console (Restaurant OS team only; rows in public.platform_admins)
+// ---------------------------------------------------------------------------
+export const platformApi = {
+  me: (token: string) => request<{ admin: boolean; email: string | null }>('/api/platform/me', { token }),
+  overview: (token: string) => request<PlatformOverview>('/api/platform/overview', { token }),
+  restaurants: (token: string) => request<PlatformRestaurant[]>('/api/platform/restaurants', { token }),
+  updateRestaurant: (token: string, id: string, body: PlatformRestaurantUpdate) =>
+    request<Restaurant>(`/api/platform/restaurants/${id}`, { token, method: 'PATCH', body }),
+  leads: (token: string) => request<Lead[]>('/api/platform/leads', { token }),
 };
 
 // ---------------------------------------------------------------------------
@@ -457,6 +497,12 @@ export const adminApi = {
   audit: (token: string, filter: { limit?: number; entity?: string; before?: number } = {}) => request<AuditEntry[]>('/api/admin/audit', { token, query: filter }),
   /** Download links (the token travels in the query, like the customers CSV). */
   backupUrl: (token: string) => `${BASE}/api/admin/export.json?token=${encodeURIComponent(token)}`,
+  // ----- Staff device alerts (Web Push) -----
+  staffPushSubscribe: (token: string, subscription: PushSubscriptionJSON) => request<{ ok: true }>('/api/admin/push/subscribe', { token, body: { subscription } }),
+  staffPushUnsubscribe: (token: string, endpoint: string) => request<{ ok: true }>('/api/admin/push/unsubscribe', { token, body: { endpoint } }),
+  /** Sends a test alert to every device of the signed-in staff member. */
+  staffPushTest: (token: string) => request<{ devices: number; delivered: number }>('/api/admin/push/test', { token, method: 'POST' }),
+
   ordersCsvUrl: (token: string, range: { from?: string; to?: string } = {}) => {
     const q = new URLSearchParams({ token });
     if (range.from) q.set('from', range.from);

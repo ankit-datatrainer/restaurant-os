@@ -12,13 +12,17 @@ import { ApiRequestError, publicApi } from '@/lib/api';
 import { cn, formatINR, formatTime, orderCode, tableDisplay } from '@/lib/utils';
 import { fadeUp, stagger } from '@/lib/motion';
 import { useCart } from '@/store/cart';
-import { canAddToOrder, feedbackOn, gamesOn, loyaltyOn, storyOn } from './features';
+import { canAddToOrder, feedbackOn, gamesOn, loyaltyOn, safeHttpUrl, storyOn } from './features';
 import { FeedbackCard } from './feedback-card';
+import { GoogleReviewCard } from './google-review-card';
 import { GuestPageHeader } from './page-header';
 import { HelpSheet } from './help-sheet';
 import { LoyaltyCard, hasLoyaltyCard } from './loyalty-card';
+import { NotifyCard } from './notify-card';
+import { tableScope } from './notify-prefs';
 import { OrderItems, OrderTotals } from './order-items';
 import { OrderTimeline } from './order-timeline';
+import { useOrderWatcher } from './order-watcher';
 import { PaymentBlock } from './payment-block';
 import { StoryCard } from './story-card';
 import { useTable } from './table-provider';
@@ -52,7 +56,9 @@ export function TrackerScreen() {
   const [error, setError] = React.useState<string | null>(null);
   const [claiming, setClaiming] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
-  const prevStatus = React.useRef<OrderStatus | null>(null);
+  const watcher = useOrderWatcher();
+  const report = watcher?.report;
+  const subscribe = watcher?.subscribe;
 
   const load = React.useCallback(async () => {
     if (!session || !orderId) return;
@@ -61,15 +67,25 @@ export function TrackerScreen() {
       setOrder(o);
       setError(null);
       setNotFound(false);
+      // Status notices come from the order watcher (one banner per change, on every guest page).
+      report?.(o);
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 404) setNotFound(true);
       else setError(e instanceof Error ? e.message : 'Could not load this order');
     }
-  }, [orderId, session]);
+  }, [orderId, session, report]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  // The watcher saw this order move (its own poll or a push): refresh at once.
+  React.useEffect(() => {
+    if (!subscribe) return;
+    return subscribe((ids) => {
+      if (ids.includes(orderId)) void load();
+    });
+  }, [subscribe, orderId, load]);
 
   const cooking = order ? !FINAL.has(order.status) : false;
   const active = order ? cooking || paymentInFlight(order) : false;
@@ -99,14 +115,6 @@ export function TrackerScreen() {
     };
   }, [active, pollMs, load]);
 
-  // A small nudge when the kitchen moves the order along while the guest is looking.
-  const status = order?.status ?? null;
-  React.useEffect(() => {
-    if (!status) return;
-    if (prevStatus.current && prevStatus.current !== status) toast(ORDER_STATUS_GUEST_COPY[status]);
-    prevStatus.current = status;
-  }, [status]);
-
   const claim = async () => {
     if (!session || !order || claiming) return;
     setClaiming(true);
@@ -127,6 +135,10 @@ export function TrackerScreen() {
 
   const addable = Boolean(order && canAddToOrder(order) && restaurant?.is_open !== false);
   const showFeedback = Boolean(order && restaurant && order.status === 'served' && feedbackOn(restaurant));
+  // Google review link for every guest once served. After an in-app rating the feedback card shows it itself.
+  const reviewUrl = safeHttpUrl(restaurant?.google_review_url);
+  const showGoogle = Boolean(order && restaurant && reviewUrl && order.status === 'served' && !(showFeedback && order.feedback));
+  const showNotify = Boolean(order && order.status !== 'served' && order.status !== 'cancelled');
   const showStory = Boolean(order && restaurant && order.status !== 'cancelled' && storyOn(restaurant));
   const showGames = gamesOn(restaurant);
   // Loads after the order is placed (this page opens right after) and again once it is served:
@@ -147,16 +159,17 @@ export function TrackerScreen() {
     router.push(menuHref);
   };
 
-  // "Rate your meal" on My orders links here with #feedback: bring the card into view once it exists.
+  // "Rate your meal" on My orders (and the served banner / notification) links here with #feedback.
   const scrolledToFeedback = React.useRef(false);
+  const hasRateCard = showFeedback || showGoogle;
   React.useEffect(() => {
-    if (!showFeedback || scrolledToFeedback.current || window.location.hash !== '#feedback') return;
+    if (!hasRateCard || scrolledToFeedback.current || window.location.hash !== '#feedback') return;
     const t = window.setTimeout(() => {
       scrolledToFeedback.current = true;
       document.getElementById('feedback')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     }, 400);
     return () => window.clearTimeout(t);
-  }, [showFeedback, reduce]);
+  }, [hasRateCard, reduce]);
 
   return (
     <div className="relative pb-16">
@@ -248,9 +261,21 @@ export function TrackerScreen() {
               </motion.div>
             )}
 
-            {showFeedback && restaurant && (
+            {showNotify && (
               <motion.div variants={fadeUp}>
+                <NotifyCard variant="compact" scope={tableScope(code)} target={{ table_code: code }} sessionId={session?.id ?? null} />
+              </motion.div>
+            )}
+
+            {showFeedback && restaurant && (
+              <motion.div variants={fadeUp} className={cn('rounded-3xl', !order.feedback && 'ring-2 ring-saffron/50 ring-offset-2 ring-offset-bg')}>
                 <FeedbackCard id="feedback" order={order} restaurant={restaurant} guestSessionId={session?.id ?? null} onSaved={setOrder} />
+              </motion.div>
+            )}
+
+            {showGoogle && restaurant && (
+              <motion.div variants={fadeUp}>
+                <GoogleReviewCard restaurant={restaurant} id={showFeedback ? undefined : 'feedback'} quiet={showFeedback} />
               </motion.div>
             )}
 

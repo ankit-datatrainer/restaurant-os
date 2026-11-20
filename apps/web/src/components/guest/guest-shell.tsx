@@ -3,15 +3,20 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import { WifiOff } from 'lucide-react';
+import type { OrderWithItems } from '@restaurant-os/shared';
+import { publicApi } from '@/lib/api';
+import { feedbackOn, safeHttpUrl } from './features';
 import { LangProvider } from './i18n';
-import { TableProvider } from './table-provider';
+import { tableScope } from './notify-prefs';
+import { OrderWatcherProvider, type NoticeStage } from './order-watcher';
+import { TableProvider, useTable } from './table-provider';
 import { SessionCallsProvider } from './use-session-calls';
 import { useOnline } from './use-online';
 
 /**
  * Wraps every /t/[code] page: light "paper" theme, phone-width frame on desktop,
- * safe-area padding at the bottom, the guest's waiter requests, the menu language (EN / हिं)
- * and the offline banner.
+ * safe-area padding at the bottom, the guest's waiter requests, the menu language (EN / हिं),
+ * the offline banner and the order watcher (status banners + alerts on every page, games included).
  * No header here — each page owns its chrome.
  */
 export function GuestShell({ code, children }: { code: string; children: React.ReactNode }) {
@@ -63,11 +68,39 @@ export function GuestShell({ code, children }: { code: string; children: React.R
                   <p className="min-w-0">You&apos;re offline. Orders and requests will go through once you&apos;re back online.</p>
                 </div>
               )}
-              {children}
+              <TableOrderWatcher>{children}</TableOrderWatcher>
             </div>
           </div>
         </SessionCallsProvider>
       </LangProvider>
     </TableProvider>
+  );
+}
+
+/** Watches this phone's orders at the table from every guest page (menu, My orders, tracker, games). */
+function TableOrderWatcher({ children }: { children: React.ReactNode }) {
+  const { code, data, session } = useTable();
+  const restaurant = data?.restaurant ?? null;
+  const sessionId = session?.id ?? null;
+  const rateable = Boolean(restaurant && (feedbackOn(restaurant) || safeHttpUrl(restaurant.google_review_url)));
+
+  const fetchOrders = React.useCallback(() => (sessionId ? publicApi.sessionOrders(code, sessionId) : Promise.resolve([])), [code, sessionId]);
+  const hrefFor = React.useCallback(
+    (o: OrderWithItems, stage: NoticeStage) => `/t/${code}/orders/${o.id}${stage === 'served' && rateable ? '#feedback' : ''}`,
+    [code, rateable],
+  );
+
+  return (
+    <OrderWatcherProvider
+      kind="table"
+      scope={tableScope(code)}
+      enabled={Boolean(sessionId)}
+      fetchOrders={fetchOrders}
+      hrefFor={hrefFor}
+      rateable={rateable}
+      restaurantName={restaurant?.name}
+    >
+      {children}
+    </OrderWatcherProvider>
   );
 }

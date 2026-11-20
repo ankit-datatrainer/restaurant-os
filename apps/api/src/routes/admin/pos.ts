@@ -15,6 +15,7 @@ import { forbidden, fromSupabase, notFound } from '../../lib/errors.js';
 import { num, parse, pickQuery, staffHandler, uuidParam } from '../../services/handlers.js';
 import { ORDER_SELECT, withSortedItems } from '../../services/orders.js';
 import { requireManager } from '../../services/plan.js';
+import { notifyGuestPaid } from '../../services/push.js';
 import {
   billPreviewSchema,
   billsQuerySchema,
@@ -111,7 +112,9 @@ posRouter.post(
       p_note: input.note ?? null,
     });
     if (error) throw fromSupabase(error, 'Could not settle the bill');
-    res.status(201).json(data as BillWithDetails);
+    const bill = data as BillWithDetails;
+    for (const order of bill.orders ?? []) notifyGuestPaid(req.auth.db, req.auth.restaurant, order);
+    res.status(201).json(bill);
   }),
 );
 

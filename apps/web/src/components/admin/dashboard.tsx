@@ -13,6 +13,7 @@ import { fadeUp, stagger } from '@/lib/motion';
 import { useAdmin, useAdminEvents } from './admin-provider';
 import { BarChart } from './bar-chart';
 import { RetentionCard } from './retention-card';
+import { SetupChecklist } from './setup-checklist';
 import { PageHeader } from './page-header';
 import { StatTile } from './stat-tile';
 import { errorMessage, itemCount } from './format';
@@ -80,6 +81,8 @@ export function Dashboard() {
           </Link>
         }
       />
+
+      <SetupChecklist />
 
       {error && (
         <p className="mb-4 rounded-xl bg-rose-soft px-4 py-3 text-sm font-medium text-[#a1282c]" role="alert">

@@ -12,8 +12,12 @@ import { fadeUp, stagger } from '@/lib/motion';
 import { GuestPageHeader } from '@/components/guest/page-header';
 import { OrderItems, OrderTotals } from '@/components/guest/order-items';
 import { PaymentBlock } from '@/components/guest/payment-block';
+import { GoogleReviewCard } from '@/components/guest/google-review-card';
+import { NotifyCard } from '@/components/guest/notify-card';
+import { takeawayScope } from '@/components/guest/notify-prefs';
+import { useOrderWatcher } from '@/components/guest/order-watcher';
 import { formatIstDateTime } from './hours';
-import { PICKUP_COPY, PICKUP_LABEL, PickupTimeline } from './pickup-timeline';
+import { PICKUP_LABEL, PickupTimeline } from './pickup-timeline';
 import { useRestaurant } from './restaurant-provider';
 
 const POLL_MS = 8000;
@@ -37,7 +41,9 @@ export function TakeawayOrdersScreen() {
   const [claimingId, setClaimingId] = React.useState<string | null>(null);
   const [highlight, setHighlight] = React.useState<string | null>(null);
   const [refreshing, setRefreshing] = React.useState(false);
-  const prev = React.useRef(new Map<string, OrderStatus>());
+  const watcher = useOrderWatcher();
+  const report = watcher?.report;
+  const subscribe = watcher?.subscribe;
 
   React.useEffect(() => {
     setHighlight(new URLSearchParams(window.location.search).get('placed'));
@@ -47,23 +53,25 @@ export function TakeawayOrdersScreen() {
     if (!session) return;
     try {
       const list = await publicApi.takeawayOrders(slug, session.id);
-      // A nudge when the kitchen moves an order along while the guest is looking.
-      for (const o of list) {
-        const before = prev.current.get(o.id);
-        if (before && before !== o.status) toast(`${orderCode(o.order_number)}: ${PICKUP_COPY[o.status]}`);
-        prev.current.set(o.id, o.status);
-      }
       setOrders(list);
       setError(null);
+      // Status banners come from the order watcher; it compares this fresh list at once.
+      report?.(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your orders.');
       setOrders((o) => o ?? []);
     }
-  }, [slug, session]);
+  }, [slug, session, report]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  // The watcher saw an order move (its own check or a push): refresh at once.
+  React.useEffect(() => {
+    if (!subscribe) return;
+    return subscribe(() => void load());
+  }, [subscribe, load]);
 
   React.useEffect(() => {
     let timer: number | undefined;
@@ -117,6 +125,9 @@ export function TakeawayOrdersScreen() {
   };
 
   const backHref = `/r/${slug}`;
+  const anyActive = (orders ?? []).some((o) => o.status !== 'served' && o.status !== 'cancelled');
+  // Google review link for every guest once an order is picked up (shown on the latest one only).
+  const reviewOrderId = (orders ?? []).find((o) => o.status === 'served')?.id ?? null;
 
   return (
     <div className="relative pb-16">
@@ -167,6 +178,16 @@ export function TakeawayOrdersScreen() {
         {orders && orders.length > 0 && (
           <motion.div className="grid gap-5" variants={stagger(0.07)} initial={reduce ? false : 'hidden'} animate="show">
             {error && <p className="rounded-2xl bg-saffron-soft px-4 py-3 text-[13px] text-[#6e4700]">{error} Showing what we had.</p>}
+            {anyActive && session && (
+              <motion.div variants={fadeUp}>
+                <NotifyCard
+                  variant={highlight ? 'full' : 'compact'}
+                  scope={takeawayScope(slug)}
+                  target={{ restaurant_slug: slug }}
+                  sessionId={session.id}
+                />
+              </motion.div>
+            )}
             {orders.map((o) => (
               <motion.article
                 key={o.id}
@@ -201,6 +222,8 @@ export function TakeawayOrdersScreen() {
 
                 <div className="grid gap-5 p-5">
                   <PickupTimeline order={o} />
+
+                  {o.id === reviewOrderId && restaurant && <GoogleReviewCard restaurant={restaurant} className="border-saffron/30 shadow-none" />}
 
                   <div>
                     <h3 className="font-display text-base font-bold">Items</h3>

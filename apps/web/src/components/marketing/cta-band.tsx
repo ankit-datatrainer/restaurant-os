@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ArrowUpRight, CalendarCheck } from 'lucide-react';
 import { Button, Magnetic, Reveal } from '@/components/ui';
 import { MaskWords } from './mask-words';
@@ -19,19 +20,26 @@ export function CtaBand() {
           words={[{ text: 'See' }, { text: 'it' }, { text: 'on' }, { text: 'your', className: 'font-serif font-normal italic text-ember' }, { text: 'menu.', className: 'font-serif font-normal italic text-ember' }]}
         />
         <Reveal as="p" delay={0.3} className="mx-auto mt-7 max-w-xl text-lg text-muted">
-          Make restaurant service smarter, simpler and more connected. Book a 5-minute demo and we load your own menu first, or try the demo restaurant right now.
+          Start a 14-day free trial of everything and set up your own menu in a few minutes. No card needed. Rather have us walk you through it? Book a
+          5-minute demo and we load your menu first.
         </Reveal>
         <Reveal delay={0.45} className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Magnetic>
-            <Button href="/contact?plan=demo" size="xl" leftIcon={<CalendarCheck className="h-5 w-5" aria-hidden />}>
-              Book a 5-minute demo
+            <Button href="/signup" size="xl" rightIcon={<ArrowUpRight className="h-5 w-5" aria-hidden />}>
+              Start free trial
             </Button>
           </Magnetic>
           <Magnetic>
-            <Button href="/demo" variant="outline" size="xl" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
-              Open live demo
+            <Button href="/contact?plan=demo" variant="outline" size="xl" leftIcon={<CalendarCheck className="h-5 w-5" aria-hidden />}>
+              Book a 5-minute demo
             </Button>
           </Magnetic>
+        </Reveal>
+        <Reveal as="p" delay={0.55} className="mt-6 text-sm text-muted">
+          Want to look around first?{' '}
+          <Link href="/demo" className="font-semibold text-fg underline-offset-4 hover:text-ember hover:underline">
+            Open the live demo
+          </Link>
         </Reveal>
       </div>
     </section>

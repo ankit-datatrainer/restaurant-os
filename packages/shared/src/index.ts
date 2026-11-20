@@ -237,8 +237,28 @@ export interface Restaurant {
   /** Opening hours (IST, "HH:MM:SS"), used for pickup and booking times. May cross midnight. */
   open_time: string;
   close_time: string;
+  /** SaaS profile (migration 0007). */
+  city: string | null;
+  cuisine: string | null;
+  /** 14-digit FSSAI licence / registration number, printed on every bill (mandatory in India since Oct 2021). */
+  fssai_number: string | null;
+  /** Shown in the public directory at /restaurants. */
+  listed: boolean;
+  /** Set by the platform owner. A suspended restaurant takes no new orders. */
+  status: RestaurantStatus;
+  /** End of the free trial; null when not on a trial. */
+  trial_ends_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export const RESTAURANT_STATUSES = ['active', 'suspended'] as const;
+export type RestaurantStatus = (typeof RESTAURANT_STATUSES)[number];
+
+/** Days left in the free trial (0 when it has ended), or null when the restaurant is not on a trial. */
+export function trialDaysLeft(r: Pick<Restaurant, 'trial_ends_at'>, now: number = Date.now()): number | null {
+  if (!r.trial_ends_at) return null;
+  return Math.max(0, Math.ceil((new Date(r.trial_ends_at).getTime() - now) / 86_400_000));
 }
 
 export interface DiningTable {
@@ -1466,4 +1486,116 @@ export interface AuditEntry {
   entity_id: string | null;
   detail: Record<string, unknown>;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// SaaS platform (migration 0007): self-signup, directory, platform console, push
+// ---------------------------------------------------------------------------
+
+export const TRIAL_DAYS = 14;
+
+/** POST /api/account/restaurant — a signed-in account without a restaurant creates one. */
+export interface CreateRestaurantInput {
+  name: string;
+  /** Web address: /r/<slug>. 3–40 lowercase letters, numbers and dashes. */
+  slug: string;
+  city?: string;
+  phone?: string;
+  owner_name?: string;
+  /** Tables to create (each gets its own QR code). */
+  tables: number;
+  /** Copy the demo café's menu as a starting point. */
+  sample_menu?: boolean;
+}
+
+/** "Saffron Lane Café" → "saffron-lane-cafe" */
+export function slugify(input: string): string {
+  return input
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '');
+}
+
+export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+
+/** GET /api/public/directory */
+export interface DirectoryRestaurant {
+  slug: string;
+  name: string;
+  tagline: string | null;
+  city: string | null;
+  cuisine: string | null;
+  cover_url: string | null;
+  logo_url: string | null;
+  is_open: boolean;
+  open_time: string;
+  close_time: string;
+  takeaway_enabled: boolean;
+  reservations_enabled: boolean;
+}
+
+export interface DirectoryResponse {
+  restaurants: DirectoryRestaurant[];
+  cities: string[];
+}
+
+/** GET /api/platform/overview */
+export interface PlatformOverview {
+  restaurants: number;
+  active: number;
+  suspended: number;
+  on_trial: number;
+  trial_expired: number;
+  listed: number;
+  by_plan: Partial<Record<PlanId, number>>;
+  signups_7d: number;
+  signups_30d: number;
+  orders_30d: number;
+  gmv_30d: number;
+  orders_today: number;
+  leads_30d: number;
+}
+
+/** GET /api/platform/restaurants */
+export interface PlatformRestaurant {
+  id: string;
+  slug: string;
+  name: string;
+  city: string | null;
+  phone: string | null;
+  plan: PlanId;
+  status: RestaurantStatus;
+  listed: boolean;
+  trial_ends_at: string | null;
+  created_at: string;
+  is_open: boolean;
+  owner_email: string | null;
+  staff_count: number;
+  table_count: number;
+  dish_count: number;
+  orders_30d: number;
+  gmv_30d: number;
+  last_order_at: string | null;
+}
+
+/** PATCH /api/platform/restaurants/:id */
+export interface PlatformRestaurantUpdate {
+  plan?: PlanId;
+  status?: RestaurantStatus;
+  /** ISO instant; extend or shorten the trial. */
+  trial_ends_at?: string;
+  /** true = end the trial now (clears trial_ends_at). */
+  end_trial?: boolean;
+  listed?: boolean;
+}
+
+/** A browser PushSubscription as JSON (subscription.toJSON()). */
+export interface PushSubscriptionJSON {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
 }

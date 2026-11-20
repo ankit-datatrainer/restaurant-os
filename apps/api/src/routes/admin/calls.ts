@@ -4,6 +4,7 @@ import { fromSupabase, notFound } from '../../lib/errors.js';
 import { CALL_SELECT } from '../../services/calls.js';
 import { parse, pickQuery, staffHandler, uuidParam } from '../../services/handlers.js';
 import { callsQuerySchema } from '../../services/schemas.js';
+import { notifyGuestCallAttended } from '../../services/push.js';
 
 export const callsRouter = Router();
 
@@ -36,6 +37,7 @@ callsRouter.patch(
       .maybeSingle();
     if (error) throw fromSupabase(error);
     if (!data) throw notFound('Call not found');
+    notifyGuestCallAttended(req.auth.db, data as AssistanceCall);
     res.json(data as AssistanceCall);
   }),
 );

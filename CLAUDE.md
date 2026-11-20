@@ -10,7 +10,7 @@ plays games while waiting → pays by UPI or at the counter.
 apps/web        Next.js 15 (App Router, React 19, TypeScript, Tailwind 3.4, framer-motion, gsap, lenis, zustand, sonner, lucide-react)
 apps/api        Express 4 + TypeScript (tsx in dev), zod, @supabase/supabase-js, qrcode, multer
 packages/shared @restaurant-os/shared — types, enums, money helpers. Import with `import { … } from '@restaurant-os/shared'`
-supabase/       migrations/0001…0006 (run in order; setup_full.sql = all of them + seed for a new project) + seed.sql
+supabase/       migrations/0001…0007 (run in order; setup_full.sql = all of them + seed for a new project) + seed.sql
 ```
 
 Run everything: `npm run dev` (API on :4000, web on :3000). Typecheck: `npm run typecheck`. Build: `npm run build`.
@@ -36,6 +36,14 @@ keeps a weighted-average cost), `reservations`, `waitlist`, `expenses`, `expense
 `staff_shifts`, `audit_log` (written by trigger `audit_row` on orders/bills/menu_items/staff/stock_movements/cash_closings/coupons/restaurants).
 Pricing for QR, takeaway and POS orders goes through `_price_order` (category serving windows, happy hours, coupons).
 Orders: `table_id` is null for takeaway; `order_type` dine_in|takeaway, `source` qr|pos|online, `pickup_at`, `discount_amount`.
+
+SaaS (0007): restaurants get `city`, `cuisine`, `fssai_number`, `listed` (public directory opt-in), `status` active|suspended and
+`trial_ends_at` (plan/status/trial guarded by trigger `restaurants_guard_plan`: only platform admins or SQL change them; suspended → trigger
+`orders_guard_restaurant` refuses new orders). `platform_admins` (user_id) = the SaaS team; `is_platform_admin()`. `create_restaurant(...)` lets a
+signed-in account with no staff row create a restaurant (Premium 14-day trial, N tables with codes, optional copy of the demo café menu).
+`platform_overview/platform_restaurants/platform_update_restaurant/platform_leads` (SECURITY DEFINER, admin-checked). `push_subscriptions`
+(kind guest|staff; guest rows keyed by guest_session_id) written via `save_guest_push` / `save_staff_push`; `staff_push_targets(kind, id, session)`
+returns staff devices only for the guest who just placed the order/call; `drop_push_subscription(endpoint)`.
 
 ## API contract (Express, apps/api) — the web client in `apps/web/src/lib/api.ts` is the source of truth
 
@@ -105,6 +113,15 @@ Operations (migration 0006). Plans: every plan gets POS/bills/floor/cash close/s
 - `GET /api/admin/staff`, `PATCH/DELETE /api/admin/staff/:id` (owner), `GET/POST /api/admin/staff-invites`, `DELETE /api/admin/staff-invites/:id`, `POST /api/admin/join` { code, display_name } (signed-in non-staff account; before requireStaff)
 - `GET /api/admin/attendance/me`, `POST /api/admin/attendance/clock-in|clock-out`, `GET /api/admin/attendance?from=&to=&staff_id=`; `GET /api/admin/audit?limit=&entity=&before=` (managers)
 - `GET /api/admin/export.json` (owner, full backup) and `GET /api/admin/export/orders.csv?from=&to=` (managers); both accept `?token=`
+SaaS + notifications (migration 0007):
+- `GET /api/public/push/config` → { enabled, publicKey }; `POST /api/public/push/subscribe` { table_code | restaurant_slug, guest_session_id, subscription }; `POST /api/public/push/unsubscribe` { endpoint }
+- `GET /api/public/directory?q=&city=` → `DirectoryResponse`; `GET /api/public/slug-available?slug=` → { available }
+- `POST /api/account/restaurant` `CreateRestaurantInput` (signed-in account, not staff yet; `requireUser` in routes/account.ts) → `Restaurant`
+- `/api/platform/*` (requireUser + is_platform_admin): `GET me` → { admin, email }, `GET overview`, `GET restaurants`, `PATCH restaurants/:id` { plan, status, trial_ends_at, end_trial, listed }, `GET leads`
+- `POST /api/admin/push/subscribe` { subscription }, `POST /api/admin/push/unsubscribe` { endpoint }, `POST /api/admin/push/test`
+- Push is sent by `apps/api/src/services/push.ts` (web-push, VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT in apps/api/.env; off when unset):
+  guests on accepted/preparing/ready/served/cancelled/paid and call attended; staff on new guest order, dishes added, waiter call. Fire-and-forget; 404/410 subscriptions deleted.
+  The web side is `apps/web/public/sw.js` + `apps/web/src/lib/push.ts`.
 Webhook format and WhatsApp template variable order are documented at the top of `apps/api/src/services/webhooks.ts` and `whatsapp.ts`.
 
 Errors are always `{ error: string, details?: unknown }` with a proper status (see src/lib/errors.ts).
@@ -117,6 +134,8 @@ Errors are always `{ error: string, details?: unknown }` with a proper status (s
   inventory, promotions, billing (+ bills/[billId] receipt), finance, reports, customers, feedback, loyalty, staff, integrations, settings;
   outside the shell: `admin/kot/[orderId]`, `admin/display` (customer-facing screen via BroadcastChannel), `admin/join` (invite code)
 - `r/[slug]/` → restaurant page (theme-light): online takeaway with scheduled pickup, table booking, `r/[slug]/orders` tracking
+- `signup/` (self-signup, 14-day trial), `admin/setup` (create a restaurant for a signed-in account), `(marketing)/restaurants` (public directory),
+  `platform/` (SaaS owner console; access = row in public.platform_admins)
 
 ## Design system (apps/web/src/app/globals.css + tailwind.config.ts)
 

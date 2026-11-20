@@ -32,11 +32,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const r = await fetchRestaurant(slug.toLowerCase());
   if (!r) {
-    return { title: 'Order takeaway or book a table', description: 'See the menu, order for pickup and book a table.' };
+    return { title: 'Order takeaway or book a table', description: 'See the menu, order for pickup and book a table.', manifest: `/r/${encodeURIComponent(slug.toLowerCase())}/app.webmanifest` };
   }
   const actions = [r.takeaway_enabled ? 'order takeaway' : null, r.reservations_enabled ? 'book a table' : null].filter(Boolean).join(' or ');
   const description = [r.tagline, r.address, actions ? `See the menu and ${actions} online.` : 'See the menu.'].filter(Boolean).join(' · ');
   return {
+    manifest: `/r/${encodeURIComponent(slug.toLowerCase())}/app.webmanifest`,
     title: r.name,
     description,
     openGraph: {

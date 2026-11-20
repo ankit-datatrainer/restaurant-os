@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { ArrowUpRight, Check, Clock } from 'lucide-react';
 import { Button, Reveal } from '@/components/ui';
@@ -106,6 +107,12 @@ export function PlanCard({ plan, billing, index = 0 }: { plan: Plan; billing: Bi
           <Button href={plan.cta.href} variant={plan.highlight ? 'primary' : 'outline'} size="lg" className="w-full" rightIcon={<ArrowUpRight className="h-4 w-4" aria-hidden />}>
             {plan.cta.label}
           </Button>
+          <p className="mt-3 text-center text-xs text-muted">
+            No card needed ·{' '}
+            <Link href={plan.secondaryCta.href} className="font-semibold text-fg/85 underline-offset-4 transition-colors hover:text-ember hover:underline">
+              {plan.secondaryCta.label}
+            </Link>
+          </p>
         </div>
       </article>
     </Reveal>

@@ -163,6 +163,80 @@ const HI: Record<string, string> = {
   '{name} is only served {window}': '{name} केवल {window} मिलता है',
   'Available {window}': '{window} उपलब्ध',
   'Serving now · {window}': 'अभी उपलब्ध · {window}',
+
+  // Order updates (banners on every guest page, system notifications)
+  'Order updates': 'ऑर्डर अपडेट',
+  'Order {code}': 'ऑर्डर {code}',
+  'Order confirmed': 'ऑर्डर कन्फ़र्म हो गया',
+  'The kitchen has it': 'किचन को मिल गया है',
+  'Being prepared': 'तैयार हो रहा है',
+  'Your food is being prepared': 'आपका खाना बन रहा है',
+  'Ready!': 'तैयार है!',
+  "It's on its way to your table": 'आपकी टेबल पर आ रहा है',
+  'Enjoy your meal': 'खाने का आनंद लें',
+  'Your food is at the table': 'आपका खाना टेबल पर है',
+  'Tap to rate it': 'रेटिंग देने के लिए टैप करें',
+  'Order cancelled': 'ऑर्डर रद्द हो गया',
+  'Please ask the staff if this is unexpected': 'अगर ऐसा नहीं होना था, तो कृपया स्टाफ़ से पूछें',
+  'Payment received': 'भुगतान मिल गया',
+  'Thank you': 'धन्यवाद',
+  'Ready for pickup': 'पिकअप के लिए तैयार',
+  "It's packed and waiting at the counter": 'पैक होकर काउंटर पर रखा है',
+  'Picked up': 'ले लिया गया',
+  'Thank you, enjoy your meal': 'धन्यवाद, खाने का आनंद लें',
+  'Please call the restaurant if this is unexpected': 'अगर ऐसा नहीं होना था, तो कृपया रेस्टोरेंट को फ़ोन करें',
+  'Rate it': 'रेटिंग दें',
+  View: 'देखें',
+  Dismiss: 'बंद करें',
+
+  // Order status lines (tracker hero, "while you wait")
+  'Sent to the kitchen': 'किचन को भेजा गया',
+  'The kitchen has your order': 'किचन को आपका ऑर्डर मिल गया है',
+  'Being cooked right now': 'अभी बन रहा है',
+  'Ready — coming to your table': 'तैयार — आपकी टेबल पर आ रहा है',
+  'Served. Enjoy your meal': 'परोसा गया। खाने का आनंद लें',
+  'This order was cancelled': 'यह ऑर्डर रद्द हो गया',
+
+  // Notifications opt-in
+  'Get a ping when your food is ready': 'खाना तैयार होते ही सूचना पाएँ',
+  "We'll tell you when the kitchen confirms your order, starts cooking and sends it out.":
+    'किचन के ऑर्डर कन्फ़र्म करने, बनाना शुरू करने और भेजने पर हम आपको बताएँगे।',
+  'Turn on notifications': 'नोटिफ़िकेशन चालू करें',
+  'Turn on': 'चालू करें',
+  'Not now': 'अभी नहीं',
+  'Notifications are on': 'नोटिफ़िकेशन चालू हैं',
+  "You'll get updates even if you lock your phone.": 'फ़ोन लॉक होने पर भी आपको अपडेट मिलेंगे।',
+  "Updates show while this page is open, even if you switch tabs. We'll also show them right here.":
+    'यह पेज खुला रहने तक अपडेट दिखेंगे, दूसरे टैब में जाने पर भी। हम उन्हें यहीं भी दिखाएँगे।',
+  'Notifications are blocked': 'नोटिफ़िकेशन बंद हैं',
+  "Notifications are blocked in your browser settings. Keep this page open and we'll show updates here.":
+    'आपके ब्राउज़र की सेटिंग में नोटिफ़िकेशन बंद हैं। यह पेज खुला रखें, हम अपडेट यहीं दिखाएँगे।',
+  'Want alerts with your phone locked?': 'फ़ोन लॉक होने पर भी अलर्ट चाहिए?',
+  'On iPhone, tap Share, then Add to Home Screen, and open it from there to get alerts. Until then, updates show on this page.':
+    'iPhone पर Share दबाएँ, फिर Add to Home Screen चुनें, और अलर्ट पाने के लिए वहीं से खोलें। तब तक अपडेट इसी पेज पर दिखेंगे।',
+  "This browser can't show alerts": 'यह ब्राउज़र अलर्ट नहीं दिखा सकता',
+  "Keep this page open and we'll show updates here.": 'यह पेज खुला रखें, हम अपडेट यहीं दिखाएँगे।',
+
+  // Google review
+  'Review {name} on Google': 'Google पर {name} का रिव्यू लिखें',
+  'Prefer Google? Your review helps other diners find them.': 'Google पसंद है? आपका रिव्यू दूसरों को इन्हें ढूँढने में मदद करता है।',
+  'If you have a minute, tell other diners how it was.': 'एक मिनट हो तो दूसरों को बताएँ कि कैसा लगा।',
+  'Review on Google': 'Google पर रिव्यू लिखें',
+
+  // While you wait (after placing an order)
+  'From the kitchen of {name}': '{name} के किचन से',
+  'From the kitchen of': 'किचन से सीधे',
+  Skip: 'छोड़ें',
+  'Sound is off. Use the player to turn it on.': 'आवाज़ बंद है। चालू करने के लिए प्लेयर का उपयोग करें।',
+  Continue: 'आगे बढ़ें',
+  'Your order is with the kitchen. Skip any time.': 'आपका ऑर्डर किचन में है। कभी भी छोड़ सकते हैं।',
+  'While your food is cooking': 'जब तक खाना बन रहा है',
+  "We'll show every update here, on the games and on the tracker.": 'हर अपडेट यहाँ, गेम्स में और ट्रैकर पर दिखेगा।',
+  'Play a game': 'गेम खेलें',
+  "Ludo, memory and more. We'll tap you when your food is ready.": 'लूडो, मेमोरी और भी बहुत कुछ। खाना तैयार होते ही हम बताएँगे।',
+  'Track my order': 'मेरा ऑर्डर देखें',
+  'Watch our story again': 'हमारी कहानी फिर से देखें',
+  'Watch our story': 'हमारी कहानी देखें',
 };
 
 export type TParams = Record<string, string | number>;

@@ -17,6 +17,7 @@ export const site = {
 export const NAV_LINKS = [
   { href: '/features', label: 'Features' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/restaurants', label: 'Restaurants' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
   { href: '/demo', label: 'Demo' },
@@ -29,6 +30,7 @@ export const FOOTER_COLUMNS = [
       { href: '/features', label: 'Features' },
       { href: '/pricing', label: 'Pricing' },
       { href: '/pricing#founding', label: 'Founding partners' },
+      { href: '/signup', label: 'Start free trial' },
       { href: '/demo', label: 'Live demo' },
       { href: '/#how', label: 'How it works' },
     ],
@@ -37,6 +39,7 @@ export const FOOTER_COLUMNS = [
     title: 'Company',
     links: [
       { href: '/about', label: 'About' },
+      { href: '/restaurants', label: 'Restaurants' },
       { href: '/contact', label: 'Contact' },
       { href: '/about#roadmap', label: 'Roadmap' },
       { href: '/privacy', label: 'Privacy' },

@@ -15,6 +15,7 @@ import { feedbackOn, loyaltyOn } from './features';
 import { GuestPageHeader } from './page-header';
 import { HelpSheet } from './help-sheet';
 import { LoyaltyCard, hasLoyaltyCard } from './loyalty-card';
+import { useOrderWatcher } from './order-watcher';
 import { useTable } from './table-provider';
 import { callStateOf, useSessionCalls } from './use-session-calls';
 import { useLoyalty } from './use-loyalty';
@@ -74,6 +75,7 @@ export function OrdersScreen() {
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [asking, setAsking] = React.useState(false);
   const { calls, refresh: refreshCalls } = useSessionCalls();
+  const report = useOrderWatcher()?.report;
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -89,10 +91,12 @@ export function OrdersScreen() {
       const res = await publicApi.sessionOrders(code, session.id);
       setOrders(res);
       setError(null);
+      // Status banners come from the order watcher; it compares this fresh list at once.
+      report?.(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your orders');
     }
-  }, [code, session]);
+  }, [code, session, report]);
 
   React.useEffect(() => {
     void load();

@@ -26,11 +26,13 @@ import { ItemSheet } from './item-sheet';
 import { MenuHeader } from './menu-header';
 import { ClosedBanner, MenuSkeleton, TableProblem } from './menu-states';
 import { OrderSuccess } from './order-success';
+import { useOrderWatcher } from './order-watcher';
 import { Splash } from './splash';
 import { StoryTeaser } from './story-card';
 import { peekTableCache, useTable } from './table-provider';
 import { useHydrated } from './use-hydrated';
 import { useScrollSpy } from './use-scroll-spy';
+import { hasWaitFlow, waitFlowHref } from './wait-flow';
 
 const sectionId = (categoryId: string) => `cat-${categoryId}`;
 const NO_LINES: CartLine[] = [];
@@ -101,6 +103,7 @@ export function MenuScreen() {
   const [cartOpen, setCartOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [placed, setPlaced] = React.useState<OrderWithItems | null>(null);
+  const watcher = useOrderWatcher();
   const [ordersCount, setOrdersCount] = React.useState(0);
 
   // Splash: only on the first load in this tab (skipped when the menu is cached).
@@ -299,7 +302,11 @@ export function MenuScreen() {
     setCartOpen(false);
     setPlaced(order);
     setOrdersCount((c) => c + 1);
-    window.setTimeout(() => router.push(`/t/${code}/orders/${order.id}`), reduce ? 900 : 2000);
+    // Start watching at once, so the first kitchen step is announced wherever the guest goes.
+    watcher?.track(order);
+    // The "while you wait" flow (story video, games, alerts) when the restaurant has one; else the tracker.
+    const next = hasWaitFlow(restaurant) ? waitFlowHref(code, order.id) : `/t/${code}/orders/${order.id}`;
+    window.setTimeout(() => router.push(next), reduce ? 900 : 2000);
   };
 
   return (

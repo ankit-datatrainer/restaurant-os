@@ -6,6 +6,8 @@ import { config, isProd } from './config.js';
 import { errorMiddleware } from './lib/errors.js';
 import { publicRouter } from './routes/public.js';
 import { adminRouter } from './routes/admin/index.js';
+import { accountRouter } from './routes/account.js';
+import { platformRouter } from './routes/platform.js';
 
 export function createApp() {
   const app = express();
@@ -35,6 +37,8 @@ export function createApp() {
 
   app.use('/api/public', publicRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/account', accountRouter);
+  app.use('/api/platform', platformRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Route not found' });

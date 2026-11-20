@@ -84,6 +84,7 @@ export function BillView({ orderId }: { orderId: string }) {
       `Total ${formatINR(order.total)}`,
       `${PAYMENT_METHOD_LABEL[order.payment_method]} · ${PAYMENT_STATUS_LABEL[order.payment_status]}`,
       ...(restaurant.gstin ? [`GSTIN ${restaurant.gstin}`] : []),
+      ...(restaurant.fssai_number ? [`FSSAI Lic. No. ${restaurant.fssai_number}`] : []),
       '',
       isTakeaway(order) ? 'Thank you for ordering with us!' : 'Thank you for dining with us!',
     ];
@@ -148,6 +149,7 @@ export function BillView({ orderId }: { orderId: string }) {
               {restaurant.phone && restaurant.gstin && ' · '}
               {restaurant.gstin && <span>GSTIN {restaurant.gstin}</span>}
             </p>
+            {restaurant.fssai_number && <p className="mt-0.5 font-mono text-2xs uppercase tracking-[0.12em] text-ink/60">FSSAI Lic. No. {restaurant.fssai_number}</p>}
           </header>
 
           <div className="my-5 border-t border-dashed border-ink/20" />

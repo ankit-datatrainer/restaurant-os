@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
 import { Reveal } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { spring } from '@/lib/motion';
 import { PlanCard } from '../plan-card';
-import { PLANS, PRICE_FOOTNOTE, type Billing } from '../plans';
+import { PLANS, PRICE_FOOTNOTE, TRIAL_NOTE, type Billing } from '../plans';
 
 function BillingToggle({ value, onChange }: { value: Billing; onChange: (b: Billing) => void }) {
   const reduce = useReducedMotion();
@@ -51,13 +52,24 @@ function BillingToggle({ value, onChange }: { value: Billing; onChange: (b: Bill
   );
 }
 
+/** The free-trial line shown beside the plans. */
+export function TrialNote({ className }: { className?: string }) {
+  return (
+    <p className={cn('inline-flex items-center gap-2 rounded-full border border-ember/30 bg-ember/[0.08] px-4 py-2 text-center text-sm font-medium text-fg/90', className)}>
+      <Sparkles className="h-4 w-4 shrink-0 text-ember" aria-hidden />
+      {TRIAL_NOTE}
+    </p>
+  );
+}
+
 export function PricingPlans() {
   const [billing, setBilling] = React.useState<Billing>('monthly');
   return (
     <section className="pb-20 md:pb-28">
       <div className="container-x">
-        <Reveal className="flex justify-center lg:justify-start">
+        <Reveal className="flex flex-col items-center gap-4 lg:flex-row lg:justify-between">
           <BillingToggle value={billing} onChange={setBilling} />
+          <TrialNote />
         </Reveal>
         <ul className="mt-10 grid gap-5 lg:grid-cols-3">
           {PLANS.map((p, i) => (

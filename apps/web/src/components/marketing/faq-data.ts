@@ -7,7 +7,25 @@ export interface FaqItem {
 
 const growth = formatINR(PLAN_INFO.growth.monthly);
 
+/** Self-serve signup and the free trial. Shown on the home page and the pricing page. */
+export const SIGNUP_FAQ: FaqItem[] = [
+  {
+    q: 'How do I sign up?',
+    a: 'Go to the signup page and create your restaurant yourself; it takes a few minutes. You start with a sample menu that you edit into your own, add your tables, and print their QR codes straight from the dashboard. Prefer a hand? Book a demo and we set it up with you.',
+  },
+  {
+    q: 'What happens after the free trial?',
+    a: 'Your 14-day trial includes every feature. Before it ends, the Restaurant OS team gets in touch to help you pick the plan that fits. Nothing is charged automatically, because there is no card on file: you only pay once you choose a plan.',
+  },
+  {
+    q: 'Can guests find my restaurant?',
+    a: 'If you want them to. Listing in the Restaurant OS directory is optional and free. Switch it on and guests can find your page by name, cuisine or city, then order takeaway or book a table there on Growth and Premium.',
+  },
+];
+
 export const HOME_FAQ: FaqItem[] = [
+  SIGNUP_FAQ[0]!,
+  SIGNUP_FAQ[1]!,
   {
     q: 'Do guests need to install an app?',
     a: 'No. The QR opens a normal web page from the phone’s camera or browser. It works on any recent Android phone or iPhone, and there is nothing to sign up for.',
@@ -74,6 +92,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     q: 'How does setup work?',
-    a: 'We do it with you. Send us your menu and we enter it, create your tables and QR codes, and train your staff. The guided pilot then runs on real services, with us checking in, before you commit to a plan.',
+    a: 'Your choice. Sign up and do it yourself in a few minutes, starting from a sample menu. Or we do it with you: send us your menu and we enter it, create your tables and QR codes, and train your staff. The guided pilot then runs on real services, with us checking in, before you commit to a plan.',
   },
+  SIGNUP_FAQ[2]!,
 ];
